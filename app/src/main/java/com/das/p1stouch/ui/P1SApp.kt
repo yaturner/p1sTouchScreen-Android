@@ -50,6 +50,7 @@ fun P1SApp(startDestination: String) {
     val navController = rememberNavController()
     val appViewModel = backendViewModel(::AppViewModel)
     val state by appViewModel.state.collectAsState()
+    val visibleHmsErrors by appViewModel.visibleHmsErrors.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -105,7 +106,7 @@ fun P1SApp(startDestination: String) {
             ) { padding ->
                 Box(modifier = Modifier.padding(padding).fillMaxSize()) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        HmsBanner(messages = state.hmsErrors, onDismiss = { /* TODO(M7): per-message dismiss */ })
+                        HmsBanner(messages = visibleHmsErrors, onDismiss = { appViewModel.dismissHmsErrors() })
                         Box(modifier = Modifier.weight(1f)) {
                             P1SNavHost(navController = navController, startDestination = startDestination)
                             // Settings/First Run must stay usable even while
