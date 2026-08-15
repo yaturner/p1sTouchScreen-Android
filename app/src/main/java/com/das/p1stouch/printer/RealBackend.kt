@@ -42,6 +42,7 @@ class RealBackend(
     accessCode: String,
     serial: String,
     cacheDir: File,
+    private val skipThumbnails: Boolean = false,
 ) : PrinterBackend {
     private val scope = CoroutineScope(SupervisorJob())
     private val mqttClient = MqttPrinterClient(ip, accessCode, serial)
@@ -238,6 +239,7 @@ class RealBackend(
             return
         }
         _fileList.value = files
+        if (skipThumbnails) return
 
         // Only .3mf files actually embed a thumbnail (a raw .stl has none);
         // files over the cap aren't worth a full download just for the

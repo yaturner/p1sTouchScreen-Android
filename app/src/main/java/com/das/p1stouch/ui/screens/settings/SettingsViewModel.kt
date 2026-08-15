@@ -14,7 +14,10 @@ class SettingsViewModel(private val repo: PrinterConfigRepository) : ViewModel()
         viewModelScope, SharingStarted.WhileSubscribed(5000), PrinterConfig(),
     )
 
-    fun save(config: PrinterConfig) {
-        viewModelScope.launch { repo.save(config) }
+    fun save(config: PrinterConfig, onSaved: () -> Unit = {}) {
+        viewModelScope.launch {
+            repo.save(config)
+            onSaved()
+        }
     }
 }

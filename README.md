@@ -9,16 +9,26 @@ the original PySide6 app for a Raspberry Pi + touchscreen; the two share
 the same protocol know-how but no code.
 
 Screens: Home, Print Files (browse/search/sort real files off the
-printer, tap to start a print -- verified live), Print Monitor
-(placeholder, not built yet), Filament/AMS (placeholder, not built yet),
-Control (jog/home/extrude/fans/light/temps), Settings.
+printer, 3MF thumbnails, tap to start a print -- verified live), Print
+Monitor (placeholder, not built yet), Filament/AMS (placeholder, not
+built yet), Control (jog/home/extrude/fans/light/temps), Settings.
 
 **Status: active work in progress**, not yet feature-complete. MQTT
-(live telemetry, all Control commands) and FTP file listing + starting a
-print both work and have been verified against a real printer. Not yet
-done: 3MF/STL thumbnails (a Commons Net FTP download hang, still being
-tracked down), the camera stream, and the Print Monitor / Filament
-screens.
+(live telemetry, all Control commands) and FTP (file listing,
+thumbnails, starting a print) both work and have been verified against
+a real printer. Not yet done: the camera stream, and the Print Monitor /
+Filament screens.
+
+**Print Files can be slow to load thumbnails the first time.** This
+printer's FTP transfer speed over FTPS is slow in practice (tens of KB/s,
+not the multi-MB/s you'd expect on a LAN -- likely the printer's own
+embedded CPU being the bottleneck for the TLS overhead, not the network),
+so downloading and caching a preview image for every file in a large
+library can take several minutes the first time you open Print Files.
+Thumbnails are cached to disk afterward, so this is a one-time cost per
+file (until it's re-sliced/re-uploaded). If you'd rather skip this
+entirely, turn on **Skip thumbnails** in Settings -- Print Files will
+still list every file, just without previews.
 
 ## Screenshots
 

@@ -4,11 +4,13 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -17,9 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.das.p1stouch.AppRestart
 import com.das.p1stouch.BuildConfig
 import com.das.p1stouch.ui.configViewModel
 import com.das.p1stouch.ui.localBackend
@@ -36,7 +40,8 @@ fun SettingsScreen(onSetup: () -> Unit) {
     val backend = localBackend()
     val config by vm.config.collectAsState()
     val scope = rememberCoroutineScope()
-    val activity = LocalContext.current as? ComponentActivity
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
 
     var codeRevealed by remember { mutableStateOf(false) }
 
@@ -62,6 +67,29 @@ fun SettingsScreen(onSetup: () -> Unit) {
             }
         }) {
             Text("Reconnect")
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Skip thumbnails", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Don't download or show Print Files previews. This printer's FTP " +
+                        "transfer is slow, so a large file library can take several " +
+                        "minutes to load thumbnails for the first time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = config.skipThumbnails,
+                onCheckedChange = { checked ->
+                    vm.save(config.copy(skipThumbnails = checked)) { AppRestart.restart(context) }
+                },
+            )
         }
 
         Text("App version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)

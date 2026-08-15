@@ -1,6 +1,7 @@
 package com.das.p1stouch.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -16,6 +17,11 @@ data class PrinterConfig(
     val accessCode: String = "",
     val serial: String = "",
     val backend: String = "mock", // "mock" | "real"
+    // This printer's real-world FTPS throughput is slow (~85 KB/s observed
+    // live) -- a first-time Print Files load can take several minutes to
+    // download+cache every file's thumbnail. Lets a user with a large/slow
+    // library skip that entirely.
+    val skipThumbnails: Boolean = false,
 ) {
     val isPrinterComplete: Boolean
         get() = ip.isNotBlank() && accessCode.isNotBlank() && serial.isNotBlank()
@@ -31,6 +37,7 @@ class PrinterConfigRepository(private val context: Context) {
         val ACCESS_CODE = stringPreferencesKey("printer_access_code")
         val SERIAL = stringPreferencesKey("printer_serial")
         val BACKEND = stringPreferencesKey("app_backend")
+        val SKIP_THUMBNAILS = booleanPreferencesKey("skip_thumbnails")
     }
 
     val config: Flow<PrinterConfig> = context.dataStore.data.map { prefs ->
@@ -39,6 +46,7 @@ class PrinterConfigRepository(private val context: Context) {
             accessCode = prefs[Keys.ACCESS_CODE] ?: "",
             serial = prefs[Keys.SERIAL] ?: "",
             backend = prefs[Keys.BACKEND] ?: "mock",
+            skipThumbnails = prefs[Keys.SKIP_THUMBNAILS] ?: false,
         )
     }
 
@@ -48,6 +56,7 @@ class PrinterConfigRepository(private val context: Context) {
             prefs[Keys.ACCESS_CODE] = config.accessCode
             prefs[Keys.SERIAL] = config.serial
             prefs[Keys.BACKEND] = config.backend
+            prefs[Keys.SKIP_THUMBNAILS] = config.skipThumbnails
         }
     }
 }
