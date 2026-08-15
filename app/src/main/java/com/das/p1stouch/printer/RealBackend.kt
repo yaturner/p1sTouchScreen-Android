@@ -1,16 +1,22 @@
 package com.das.p1stouch.printer
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
+import com.das.p1stouch.printer.ftp.FtpPrinterClient
 import com.das.p1stouch.printer.mqtt.MqttPrinterClient
 import com.das.p1stouch.printer.mqtt.PrinterCommands
 import com.das.p1stouch.printer.mqtt.PrinterTelemetry
 import com.das.p1stouch.state.ConnectionState
 import com.das.p1stouch.state.PrintFile
 import com.das.p1stouch.state.PrinterState
+import java.io.File
+import java.security.MessageDigest
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,21 +28,33 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Backend that talks to a real P1S over the local network. MQTT-only for
- * now (M3 of the approved plan) -- FTP (file list/thumbnails, M4) and the
- * camera stream (M5) are still stubs, matching the Python app's own
- * build-mock-first-then-real-hardware-one-piece-at-a-time discipline.
+ * Backend that talks to a real P1S over the local network: MQTT (M3) +
+ * FTP file list/thumbnails (M4). The camera stream (M5) is still a stub,
+ * matching the Python app's own build-mock-first-then-real-hardware-
+ * one-piece-at-a-time discipline.
  */
 class RealBackend(
     ip: String,
     accessCode: String,
     serial: String,
+    cacheDir: File,
 ) : PrinterBackend {
     private val scope = CoroutineScope(SupervisorJob())
     private val mqttClient = MqttPrinterClient(ip, accessCode, serial)
+    private val ftpClient = FtpPrinterClient(ip, accessCode)
+    private val thumbnailCacheDir = File(cacheDir, "thumbnails").apply { mkdirs() }
+    // One at a time, not a coroutine-per-file fan-out: firing dozens of
+    // concurrent download attempts (even mutex-serialized down to one FTP
+    // operation at a time) hammered the printer hard enough to start
+    // failing unrelated MQTT connections too, confirmed live against a
+    // real P1S with ~60 cached files. Port of the Python app's
+    // ThumbnailLoader -- one dedicated worker draining a queue.
+    private val thumbnailQueue = Channel<Pair<String, File>>(Channel.UNLIMITED)
+    private var thumbnailWorkerJob: Job? = null
 
     private val _state = MutableStateFlow(PrinterState())
     override val state: StateFlow<PrinterState> = _state.asStateFlow()
@@ -66,16 +84,28 @@ class RealBackend(
         attemptConnect()
         startWatchdog()
         startPushAllRefresh()
+        startThumbnailWorker()
     }
 
     override suspend fun disconnect() {
         wantsConnection = false
         watchdogJob?.cancel(); watchdogJob = null
         pushAllRefreshJob?.cancel(); pushAllRefreshJob = null
+        thumbnailWorkerJob?.cancel(); thumbnailWorkerJob = null
         reportJob?.cancel(); reportJob = null
         reconnectJob?.cancel(); reconnectJob = null
         mqttClient.disconnect()
+        ftpClient.disconnect()
         _state.update { it.copy(connection = ConnectionState.DISCONNECTED) }
+    }
+
+    private fun startThumbnailWorker() {
+        if (thumbnailWorkerJob?.isActive == true) return
+        thumbnailWorkerJob = scope.launch {
+            for ((path, cacheFile) in thumbnailQueue) {
+                extractAndCacheThumbnail(path, cacheFile)
+            }
+        }
     }
 
     // Mirrors bambulabs_api's pushall_timeout (default 60s): the printer
@@ -155,11 +185,7 @@ class RealBackend(
     }
 
     // -- print job control ------------------------------------------------
-    override suspend fun startPrint(path: String, plate: Int) {
-        // TODO(M4): needs the FTP-listed file path + "file:///sdcard/..."
-        // project_file command -- not wired until Print Files (M4) exists.
-        _errors.emit("Starting prints isn't wired up yet")
-    }
+    override suspend fun startPrint(path: String, plate: Int) = publishSafely(PrinterCommands.startPrint(path, plate))
 
     override suspend fun pausePrint() = publishSafely(PrinterCommands.pausePrint())
     override suspend fun resumePrint() = publishSafely(PrinterCommands.resumePrint())
@@ -191,8 +217,89 @@ class RealBackend(
 
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
-        // TODO(M4): FTP wiring.
-        _fileList.value = emptyList()
+        val files = try {
+            withContext(Dispatchers.IO) { ftpClient.listCacheDir() }
+                .filter { entry ->
+                    val lower = entry.name.lowercase()
+                    lower.endsWith(".3mf") || lower.endsWith(".stl")
+                }
+                .map { entry ->
+                    PrintFile(
+                        name = entry.name,
+                        path = "cache/${entry.name}",
+                        sizeBytes = entry.sizeBytes,
+                        modifiedEpochMillis = entry.modifiedEpochMillis,
+                    )
+                }
+        } catch (e: Exception) {
+            Log.w(TAG, "file list failed", e)
+            _errors.emit("Couldn't list files: ${e.message}")
+            _fileList.value = emptyList()
+            return
+        }
+        _fileList.value = files
+
+        // Only .3mf files actually embed a thumbnail (a raw .stl has none);
+        // files over the cap aren't worth a full download just for the
+        // preview image.
+        for (f in files) {
+            if (!f.name.lowercase().endsWith(".3mf")) continue
+            if ((f.sizeBytes ?: 0L) > MAX_THUMBNAIL_FILE_BYTES) continue
+            val cacheFile = thumbnailCachePath(f.path, f.sizeBytes ?: 0L)
+            val cached = loadCachedThumbnail(cacheFile)
+            if (cached != null) {
+                _thumbnails.update { it + (f.path to cached) }
+            } else {
+                thumbnailQueue.trySend(f.path to cacheFile)
+            }
+        }
+    }
+
+    private suspend fun extractAndCacheThumbnail(path: String, cacheFile: File) {
+        val zipBytes = try {
+            withContext(Dispatchers.IO) { ftpClient.downloadFile(path) }
+        } catch (e: Exception) {
+            Log.d(TAG, "thumbnail download failed for $path", e)
+            null
+        } ?: return
+        val pngBytes = try {
+            ThumbnailExtractor.extractPlatePng(zipBytes)
+        } catch (e: Exception) {
+            Log.w(TAG, "thumbnail extraction threw for $path", e)
+            null
+        }
+        if (pngBytes == null) {
+            Log.w(TAG, "thumbnail extraction found no PNG for $path")
+            return
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                cacheFile.writeBytes(pngBytes)
+            } catch (e: Exception) {
+                Log.d(TAG, "failed to write thumbnail cache for $path", e)
+            }
+        }
+        val bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size) ?: return
+        _thumbnails.update { it + (path to bitmap) }
+    }
+
+    // Keyed on path+size rather than path alone: a same-named file re-sliced/
+    // re-uploaded with different content will very likely differ in size
+    // too, so this catches the common "file changed" case without needing
+    // to parse the FTP LIST's date column.
+    private fun thumbnailCachePath(path: String, sizeBytes: Long): File {
+        val key = sha1("$path:$sizeBytes")
+        return File(thumbnailCacheDir, "$key.png")
+    }
+
+    private fun loadCachedThumbnail(file: File): Bitmap? {
+        if (!file.exists()) return null
+        return BitmapFactory.decodeFile(file.absolutePath)
+    }
+
+    private fun sha1(input: String): String {
+        val digest = MessageDigest.getInstance("SHA-1").digest(input.toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
     }
 
     // -- helpers ----------------------------------------------------------------
@@ -212,5 +319,9 @@ class RealBackend(
         private const val SUBSCRIBE_SETTLE_MS = 500L
         private const val PUSHALL_REFRESH_MS = 50_000L
         private const val DEFAULT_NOZZLE_TARGET_FOR_SWAP = 220
+        // 3MF files above this size aren't worth a full download just for
+        // the embedded preview PNG -- no cheap partial-fetch of one zip
+        // member over this printer's FTP server.
+        private const val MAX_THUMBNAIL_FILE_BYTES = 15L * 1024 * 1024
     }
 }

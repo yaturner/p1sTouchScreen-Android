@@ -1,6 +1,8 @@
 package com.das.p1stouch.printer.mqtt
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -103,6 +105,38 @@ object PrinterCommands {
         putJsonObject("print") {
             put("sequence_id", "0")
             put("command", "unload_filament")
+        }
+    }
+
+    // real_backend.py's start_print()/_start_print_attempt(): "project_file"
+    // command. The critical, live-tested detail is the url scheme --
+    // bambulabs_api's own default ("ftp:///{filename}") reliably fails to
+    // actually start the print on this printer (stuck IDLE/FAILED, no
+    // heating); "file:///sdcard/<path>" (the file's own local SD path) is
+    // what actually works. use_ams=true + ams_mapping=[0] maps a
+    // single-material file's only filament to AMS slot 0 -- correct for
+    // that case, but a multi-material file may still fail with
+    // HMS_0700_7000_0002_0008 ("failed to get AMS mapping table") since
+    // this app doesn't parse a 3MF's internal multi-material mapping.
+    fun startPrint(path: String, plate: Int): JsonObject {
+        val bareName = path.substringAfterLast('/')
+        return buildJsonObject {
+            putJsonObject("print") {
+                put("sequence_id", "2000")
+                put("command", "project_file")
+                put("param", "Metadata/plate_$plate.gcode")
+                put("subtask_name", bareName)
+                put("file", bareName)
+                put("url", "file:///sdcard/$path")
+                put("timelapse", false)
+                put("bed_leveling", true)
+                put("bed_type", "textured_plate")
+                put("flow_cali", true)
+                put("vibration_cali", true)
+                put("layer_inspect", false)
+                put("use_ams", true)
+                put("ams_mapping", buildJsonArray { add(0) })
+            }
         }
     }
 

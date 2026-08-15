@@ -32,7 +32,7 @@ class App : Application() {
     val backend: PrinterBackend by lazy {
         val config = runBlocking { configRepository.config.first() }
         if (config.backend == "real" && config.isPrinterComplete) {
-            RealBackend(config.ip, config.accessCode, config.serial)
+            RealBackend(config.ip, config.accessCode, config.serial, cacheDir)
         } else {
             MockBackend(appScope)
         }

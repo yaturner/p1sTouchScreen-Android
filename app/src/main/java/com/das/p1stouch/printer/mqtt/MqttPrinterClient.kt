@@ -11,6 +11,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -84,15 +85,27 @@ class MqttPrinterClient(
 
     suspend fun publish(json: String) {
         val c = client ?: throw IllegalStateException("not connected")
-        suspendCancellableCoroutine<Unit> { cont ->
-            c.publishWith()
-                .topic(requestTopic)
-                .qos(MqttQos.AT_LEAST_ONCE)
-                .payload(json.toByteArray(StandardCharsets.UTF_8))
-                .send()
-                .whenComplete { _, throwable ->
-                    if (throwable != null) cont.resumeWithException(throwable) else cont.resume(Unit)
-                }
+        // QoS 0 (AT_MOST_ONCE), not 1: confirmed live that a QoS 1 publish
+        // sent immediately after connect (the initial pushall request)
+        // hangs forever waiting for a PUBACK the printer's broker never
+        // sends -- traced via filesystem markers after this exact call
+        // silently blocked attemptConnect() indefinitely, which in turn
+        // meant every start*() call after it (including the thumbnail
+        // worker) never ran. These are fire-and-forget commands anyway
+        // (pushAll() is re-sent periodically, and the UI has no
+        // per-command delivery confirmation), so QoS 0 is the right
+        // semantics here, not just a workaround.
+        withTimeout(PUBLISH_TIMEOUT_MS) {
+            suspendCancellableCoroutine<Unit> { cont ->
+                c.publishWith()
+                    .topic(requestTopic)
+                    .qos(MqttQos.AT_MOST_ONCE)
+                    .payload(json.toByteArray(StandardCharsets.UTF_8))
+                    .send()
+                    .whenComplete { _, throwable ->
+                        if (throwable != null) cont.resumeWithException(throwable) else cont.resume(Unit)
+                    }
+            }
         }
     }
 
@@ -102,4 +115,8 @@ class MqttPrinterClient(
     }
 
     val isConnected: Boolean get() = client?.state?.isConnected == true
+
+    companion object {
+        private const val PUBLISH_TIMEOUT_MS = 10_000L
+    }
 }
