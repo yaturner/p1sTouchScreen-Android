@@ -74,6 +74,17 @@ class RealBackend(
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 4)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
 
+    private val _printStartWarnings = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    override val printStartWarnings: SharedFlow<String> = _printStartWarnings.asSharedFlow()
+
+    // A print resolved (path/plate/ams_mapping) but held back pending the
+    // user's Print Anyway/Cancel choice -- see startPrint()/
+    // confirmPendingPrint()/cancelPendingPrint(). Only ever touched from
+    // suspend functions the UI calls one at a time (never a background
+    // fan-out), so a plain field is enough -- port of the Python app's
+    // RealBackend._pending_print.
+    private var pendingPrint: Triple<String, Int, List<Int>>? = null
+
     private var reportJob: Job? = null
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
@@ -206,7 +217,49 @@ class RealBackend(
     }
 
     // -- print job control ------------------------------------------------
-    override suspend fun startPrint(path: String, plate: Int) = publishSafely(PrinterCommands.startPrint(path, plate))
+    // Resolves ams_mapping from the file's actual filament requirements
+    // (see AmsMapping) before starting -- a hardcoded [0] is what caused
+    // HMS_0700_7000_0002_0008 whenever slot 0 didn't hold a matching
+    // filament. A confident match starts immediately; anything else is
+    // held as pendingPrint and surfaced via printStartWarnings so the UI
+    // can ask the user, mirroring the Python app's _PrintStartWorker /
+    // _on_print_start_resolved gating.
+    override suspend fun startPrint(path: String, plate: Int) {
+        val result = resolveAmsMappingForFile(path)
+        if (result.warning != null) {
+            pendingPrint = Triple(path, plate, result.mapping)
+            _printStartWarnings.emit(result.warning)
+            return
+        }
+        publishSafely(PrinterCommands.startPrint(path, plate, result.mapping))
+    }
+
+    private suspend fun resolveAmsMappingForFile(path: String): AmsMappingResult {
+        if (!path.lowercase().endsWith(".3mf")) return AmsMappingResult(listOf(0), null)
+        val zipBytes = try {
+            withContext(Dispatchers.IO) { ftpClient.downloadFile(path) }
+        } catch (e: Exception) {
+            Log.w(TAG, "AMS mapping download failed for $path", e)
+            null
+        } ?: return AmsMappingResult(listOf(0), null)
+        val filaments = try {
+            withContext(Dispatchers.IO) { AmsMapping.parseFilamentRequirements(zipBytes, thumbnailCacheDir) }
+        } catch (e: Exception) {
+            Log.w(TAG, "AMS mapping parse failed for $path", e)
+            null
+        } ?: return AmsMappingResult(listOf(0), null)
+        return AmsMapping.resolveAmsMapping(filaments, _state.value.amsTrays)
+    }
+
+    override suspend fun confirmPendingPrint() {
+        val (path, plate, mapping) = pendingPrint ?: return
+        pendingPrint = null
+        publishSafely(PrinterCommands.startPrint(path, plate, mapping))
+    }
+
+    override suspend fun cancelPendingPrint() {
+        pendingPrint = null
+    }
 
     override suspend fun pausePrint() = publishSafely(PrinterCommands.pausePrint())
     override suspend fun resumePrint() = publishSafely(PrinterCommands.resumePrint())

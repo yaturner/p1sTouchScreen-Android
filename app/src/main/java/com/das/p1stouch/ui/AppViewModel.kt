@@ -15,12 +15,13 @@ import kotlinx.coroutines.launch
 /** Activity-scoped: backs the top-level Scaffold (status chip, HmsBanner,
  * error snackbar, ConnectionOverlay) and the auto-navigate-to-Print-Monitor
  * side effect, mirroring MainWindow's role in the Python app. */
-class AppViewModel(backend: PrinterBackend) : ViewModel() {
+class AppViewModel(private val backend: PrinterBackend) : ViewModel() {
     val state: StateFlow<PrinterState> = backend.state.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), PrinterState(),
     )
 
     val errors: SharedFlow<String> = backend.errors
+    val printStartWarnings: SharedFlow<String> = backend.printStartWarnings
 
     // Dismissing the banner hides whatever's currently showing, but must
     // not hide a genuine NEW occurrence of the same fault forever -- this
@@ -46,5 +47,13 @@ class AppViewModel(backend: PrinterBackend) : ViewModel() {
 
     fun dismissHmsErrors() {
         dismissedHmsErrors.value = state.value.hmsErrors.toSet()
+    }
+
+    fun confirmPendingPrint() {
+        viewModelScope.launch { backend.confirmPendingPrint() }
+    }
+
+    fun cancelPendingPrint() {
+        viewModelScope.launch { backend.cancelPendingPrint() }
     }
 }

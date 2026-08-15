@@ -48,6 +48,11 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 4)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
 
+    // Never emitted -- the mock has no AMS-mismatch scenario to simulate,
+    // matching the Python app's mock_backend.py no-op.
+    private val _printStartWarnings = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    override val printStartWarnings: SharedFlow<String> = _printStartWarnings.asSharedFlow()
+
     private var tickJob: Job? = null
     private var cameraJob: Job? = null
 
@@ -101,6 +106,14 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
         currentFile = path.substringAfterLast('/')
         gcodeStateOverride = null
         tick()
+    }
+
+    override suspend fun confirmPendingPrint() {
+        // no-op: mock never holds a pending print
+    }
+
+    override suspend fun cancelPendingPrint() {
+        // no-op: mock never holds a pending print
     }
 
     override suspend fun pausePrint() {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -22,6 +23,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +49,7 @@ fun PrintMonitorScreen() {
     val vm = backendViewModel(::PrintMonitorViewModel)
     val state by vm.state.collectAsState()
     val frame by vm.cameraFrame.collectAsState()
+    var showStopConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -87,9 +90,28 @@ fun PrintMonitorScreen() {
             OutlinedButton(onClick = { vm.pauseOrResume() }) {
                 Text(if (state.gcodeState == GcodeState.PAUSE) "Resume" else "Pause")
             }
-            Button(onClick = { vm.stop() }) { Text("Stop") }
+            Button(onClick = { showStopConfirm = true }) { Text("Stop") }
             SpeedDropdown(current = state.speedLevel, onSelect = { vm.setSpeedLevel(it) })
         }
+    }
+
+    if (showStopConfirm) {
+        // Aborting an in-progress print can't be undone (wasted material/
+        // time at minimum), so Cancel/No is the focused default here rather
+        // than the usual confirm-first convention -- port of
+        // print_monitor.py's _on_stop, same reasoning as the AMS mismatch
+        // dialog's Cancel-focused default.
+        AlertDialog(
+            onDismissRequest = { showStopConfirm = false },
+            title = { Text("Stop Print") },
+            text = { Text("Stop the current print? This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = { showStopConfirm = false }) { Text("Cancel") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStopConfirm = false; vm.stop() }) { Text("Stop") }
+            },
+        )
     }
 }
 

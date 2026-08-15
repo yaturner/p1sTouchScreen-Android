@@ -68,8 +68,21 @@ private fun HomeTile(screen: Screen, onClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            screen.icon?.let {
-                Icon(it, contentDescription = null, modifier = Modifier.padding(bottom = 8.dp))
+            // home.py's tile glyph takes priority so the two apps' home
+            // screens read the same at a glance; falls back to the Material
+            // icon used elsewhere (e.g. the drawer) for destinations Python's
+            // home screen doesn't tile, like Print Monitor.
+            val emoji = screen.homeEmoji
+            if (emoji != null) {
+                Text(
+                    emoji,
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            } else {
+                screen.icon?.let {
+                    Icon(it, contentDescription = null, modifier = Modifier.padding(bottom = 8.dp))
+                }
             }
             Text(screen.title, style = MaterialTheme.typography.titleMedium)
         }

@@ -13,13 +13,23 @@ import androidx.compose.ui.graphics.vector.ImageVector
  * deliberately not [drawerItems] -- it's an entry gate only, reached via
  * startDestination logic or a "Setup" affordance in Settings, matching the
  * Python app's screen registry. */
-sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
+sealed class Screen(
+    val route: String,
+    val title: String,
+    val icon: ImageVector? = null,
+    // Same glyph home.py's tile grid uses for this destination -- HomeScreen
+    // prefers this over [icon] so the two apps' home screens read the same
+    // at a glance. Null where the Python app has no tile for this route
+    // (Print Monitor -- reached there via the print-progress banner, not a
+    // tile) or no icon at all (Home, First Run).
+    val homeEmoji: String? = null,
+) {
     data object Home : Screen("home", "Home", Icons.Filled.Home)
-    data object PrintFiles : Screen("print_files", "Print Files", Icons.AutoMirrored.Filled.List)
+    data object PrintFiles : Screen("print_files", "Print Files", Icons.AutoMirrored.Filled.List, "🗂")
     data object PrintMonitor : Screen("print_monitor", "Print Monitor", Icons.Filled.PlayArrow)
-    data object FilamentAms : Screen("filament_ams", "Filament", Icons.Filled.Refresh)
-    data object Control : Screen("control", "Control", Icons.Filled.Build)
-    data object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
+    data object FilamentAms : Screen("filament_ams", "Filament", Icons.Filled.Refresh, "🧵")
+    data object Control : Screen("control", "Control", Icons.Filled.Build, "🎛")
+    data object Settings : Screen("settings", "Settings", Icons.Filled.Settings, "⚙")
     data object FirstRun : Screen("first_run", "Setup")
 
     companion object {

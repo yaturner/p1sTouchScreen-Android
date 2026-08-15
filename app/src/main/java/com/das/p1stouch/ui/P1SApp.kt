@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -16,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -75,6 +77,41 @@ fun P1SApp(startDestination: String) {
         appViewModel.errors.collect { message ->
             snackbarHostState.showSnackbar(message)
         }
+    }
+
+    // An AMS filament mismatch the user must actively decide on -- shown as
+    // a dialog rather than folded into the snackbar above since a missed
+    // snackbar here means printing with the wrong material, not just a
+    // missed status update. Port of MainWindow._on_print_start_warning.
+    var pendingPrintWarning by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        appViewModel.printStartWarnings.collect { message ->
+            pendingPrintWarning = message
+        }
+    }
+    pendingPrintWarning?.let { message ->
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("AMS Filament Mismatch") },
+            text = { Text(message) },
+            // Cancel is the emphasized confirmButton (M3 gives it the
+            // prominent slot) and also what outside-tap/back triggers (see
+            // onDismissRequest above deliberately no-oping past that) --
+            // an accidental dismiss must never silently commit to a
+            // possibly-wrong-material print.
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingPrintWarning = null
+                    appViewModel.cancelPendingPrint()
+                }) { Text("Cancel") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    pendingPrintWarning = null
+                    appViewModel.confirmPendingPrint()
+                }) { Text("Print Anyway") }
+            },
+        )
     }
 
     // Auto-navigate to Print Monitor when a print starts while on Home --

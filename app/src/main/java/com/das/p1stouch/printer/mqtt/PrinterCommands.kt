@@ -113,12 +113,16 @@ object PrinterCommands {
     // bambulabs_api's own default ("ftp:///{filename}") reliably fails to
     // actually start the print on this printer (stuck IDLE/FAILED, no
     // heating); "file:///sdcard/<path>" (the file's own local SD path) is
-    // what actually works. use_ams=true + ams_mapping=[0] maps a
-    // single-material file's only filament to AMS slot 0 -- correct for
-    // that case, but a multi-material file may still fail with
-    // HMS_0700_7000_0002_0008 ("failed to get AMS mapping table") since
-    // this app doesn't parse a 3MF's internal multi-material mapping.
-    fun startPrint(path: String, plate: Int): JsonObject {
+    // what actually works. use_ams=false caused a DIFFERENT real failure
+    // ("External filament is missing" -- feeds from the nonexistent
+    // external spool holder), so use_ams is always true for an
+    // AMS-equipped printer; amsMapping is resolved per-file by
+    // RealBackend.resolveAmsMapping() rather than hardcoded to [0], which
+    // is what caused HMS_0700_7000_0002_0008 ("failed to get AMS mapping
+    // table") whenever slot 0 didn't happen to hold the filament the file
+    // actually wants (confirmed live -- see the matching fix in the Python
+    // app, ported here).
+    fun startPrint(path: String, plate: Int, amsMapping: List<Int> = listOf(0)): JsonObject {
         val bareName = path.substringAfterLast('/')
         return buildJsonObject {
             putJsonObject("print") {
@@ -135,7 +139,7 @@ object PrinterCommands {
                 put("vibration_cali", true)
                 put("layer_inspect", false)
                 put("use_ams", true)
-                put("ams_mapping", buildJsonArray { add(0) })
+                put("ams_mapping", buildJsonArray { amsMapping.forEach { add(it) } })
             }
         }
     }

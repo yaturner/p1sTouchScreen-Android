@@ -20,12 +20,25 @@ interface PrinterBackend {
     val thumbnails: StateFlow<Map<String, Bitmap>>
     val errors: SharedFlow<String>
 
+    // A specific, actionable reason a resolved print hasn't actually
+    // started yet (e.g. an uncertain AMS filament match) -- the UI must
+    // resolve it via confirmPendingPrint()/cancelPendingPrint(), shown as
+    // a dialog the user has to actively choose on rather than a snackbar
+    // that could be missed.
+    val printStartWarnings: SharedFlow<String>
+
     // -- lifecycle --------------------------------------------------------
     suspend fun connect()
     suspend fun disconnect()
 
     // -- print job control --------------------------------------------------
     suspend fun startPrint(path: String, plate: Int = 1)
+
+    // No-ops unless a printStartWarnings event is currently pending --
+    // confirm actually starts the print, cancel abandons it.
+    suspend fun confirmPendingPrint()
+    suspend fun cancelPendingPrint()
+
     suspend fun pausePrint()
     suspend fun resumePrint()
     suspend fun stopPrint()
