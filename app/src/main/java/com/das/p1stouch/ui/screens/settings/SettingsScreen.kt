@@ -62,13 +62,18 @@ fun SettingsScreen(onSetup: () -> Unit) {
         }
         Text(maskedCode, modifier = Modifier.clickable { codeRevealed = !codeRevealed })
 
-        OutlinedButton(onClick = {
-            scope.launch {
-                backend.disconnect()
-                backend.connect()
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = {
+                scope.launch {
+                    backend.disconnect()
+                    backend.connect()
+                }
+            }) {
+                Text("Reconnect")
             }
-        }) {
-            Text("Reconnect")
+            OutlinedButton(onClick = onSetup) {
+                Text("Printer Setup")
+            }
         }
 
         Row(
@@ -106,10 +111,6 @@ fun SettingsScreen(onSetup: () -> Unit) {
 
         Text("App version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)
         Text("Backend: ${config.backend}", style = MaterialTheme.typography.bodyLarge)
-
-        OutlinedButton(onClick = onSetup) {
-            Text("Printer Setup")
-        }
 
         Button(onClick = { activity?.finishAffinity() }) {
             Text("Exit App")
