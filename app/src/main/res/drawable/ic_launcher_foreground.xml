@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- abstract nozzle glyph, kept inside the adaptive-icon safe zone (18-90) -->
+    <path
+        android:fillColor="#00B371"
+        android:pathData="M40,28 L68,28 L60,52 L48,52 Z" />
+    <path
+        android:fillColor="#00B371"
+        android:pathData="M50,52 L58,52 L58,64 L50,64 Z" />
+    <path
+        android:fillColor="#00B371"
+        android:pathData="M34,72 a20,6 0,1 0,40 0 a20,6 0,1 0,-40 0" />
+</vector>

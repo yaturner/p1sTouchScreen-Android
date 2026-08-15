@@ -1,0 +1,13 @@
+<resources>
+    <!--
+    Compose renders its own theming (see ui/theme/Theme.kt); this XML theme only
+    covers what the platform draws before/around Compose content -window
+    background (avoids a white flash on launch) and NoActionBar (the app bar is
+    a Compose Scaffold TopAppBar, not a platform action bar).
+    -->
+    <style name="Theme.P1STouch" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@color/window_background</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+    </style>
+</resources>
