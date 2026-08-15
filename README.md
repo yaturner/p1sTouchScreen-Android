@@ -10,14 +10,14 @@ the same protocol know-how but no code.
 
 Screens: Home, Print Files (browse/search/sort real files off the
 printer, 3MF thumbnails, tap to start a print -- verified live), Print
-Monitor (placeholder, not built yet), Filament/AMS (placeholder, not
-built yet), Control (jog/home/extrude/fans/light/temps), Settings.
+Monitor (live camera feed, progress/layer/ETA, pause/resume/stop, speed
+-- verified live), Filament/AMS (placeholder, not built yet), Control
+(jog/home/extrude/fans/light/temps), Settings.
 
 **Status: active work in progress**, not yet feature-complete. MQTT
-(live telemetry, all Control commands) and FTP (file listing,
-thumbnails, starting a print) both work and have been verified against
-a real printer. Not yet done: the camera stream, and the Print Monitor /
-Filament screens.
+(live telemetry, all Control commands), FTP (file listing, thumbnails,
+starting a print), and the camera stream all work and have been
+verified against a real printer. Not yet done: the Filament/AMS screen.
 
 **Print Files can be slow to load thumbnails the first time.** This
 printer's FTP transfer speed over FTPS is slow in practice (tens of KB/s,
