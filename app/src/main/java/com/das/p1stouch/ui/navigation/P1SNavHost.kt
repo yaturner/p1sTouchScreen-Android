@@ -22,14 +22,12 @@ fun P1SNavHost(navController: NavHostController, startDestination: String) {
         composable(Screen.PrintMonitor.route) { PrintMonitorScreen() }
         composable(Screen.FilamentAms.route) { FilamentAmsScreen() }
         composable(Screen.Control.route) { ControlScreen() }
-        composable(Screen.Settings.route) { SettingsScreen() }
+        composable(Screen.Settings.route) {
+            SettingsScreen(onSetup = { navController.navigate(Screen.FirstRun.route) })
+        }
         composable(Screen.FirstRun.route) {
-            FirstRunScreen(onDone = { skippedToHome ->
-                // Matches the Python app: "Skip" goes straight to Home (stays on
-                // mock/demo backend); "Save & Continue" goes to Settings since
-                // switching to the real backend needs an app restart (M3).
-                val target = if (skippedToHome) Screen.Home.route else Screen.Settings.route
-                navController.navigate(target) {
+            FirstRunScreen(onSkip = {
+                navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.FirstRun.route) { inclusive = true }
                 }
             })

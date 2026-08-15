@@ -4,9 +4,12 @@ import android.app.Application
 import com.das.p1stouch.data.PrinterConfigRepository
 import com.das.p1stouch.printer.MockBackend
 import com.das.p1stouch.printer.PrinterBackend
+import com.das.p1stouch.printer.RealBackend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Owns the single app-wide [PrinterBackend] instance and the coroutine scope
@@ -19,10 +22,21 @@ class App : Application() {
 
     val configRepository: PrinterConfigRepository by lazy { PrinterConfigRepository(this) }
 
-    // TODO(M3): pick MockBackend vs RealBackend based on configRepository's
-    // saved backend choice, same as the Python app's build_backend(). Mock-only
-    // for now (M1/M2).
-    val backend: PrinterBackend by lazy { MockBackend(appScope) }
+    // Same one-time synchronous local-disk read as MainActivity's
+    // startDestination decision -- picks the backend once at process start,
+    // matching the Python app's build_backend(). Port of that same
+    // "mock" | "real" switch, one-shot rather than reactive: switching
+    // backends at runtime isn't supported any more than the Python app's
+    // config.yaml is hot-reloaded (Settings still directs the user to
+    // restart after changing this).
+    val backend: PrinterBackend by lazy {
+        val config = runBlocking { configRepository.config.first() }
+        if (config.backend == "real" && config.isPrinterComplete) {
+            RealBackend(config.ip, config.accessCode, config.serial)
+        } else {
+            MockBackend(appScope)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()

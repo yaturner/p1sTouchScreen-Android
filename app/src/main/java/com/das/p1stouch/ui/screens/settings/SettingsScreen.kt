@@ -27,9 +27,11 @@ import kotlinx.coroutines.launch
 
 /** Port of ui/screens/settings.py, minus the desktop/kiosk-Pi-specific
  * fullscreen toggle and Restart App/Shutdown Pi buttons -- those have no
- * Android equivalent worth forcing (see the approved plan). */
+ * Android equivalent worth forcing (see the approved plan). [onSetup] is
+ * the "Setup" affordance mentioned in the plan for re-reaching First Run,
+ * which otherwise has no drawer entry. */
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onSetup: () -> Unit) {
     val vm = configViewModel(::SettingsViewModel)
     val backend = localBackend()
     val config by vm.config.collectAsState()
@@ -64,6 +66,10 @@ fun SettingsScreen() {
 
         Text("App version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)
         Text("Backend: ${config.backend}", style = MaterialTheme.typography.bodyLarge)
+
+        OutlinedButton(onClick = onSetup) {
+            Text("Printer Setup")
+        }
 
         Button(onClick = { activity?.finishAffinity() }) {
             Text("Exit App")

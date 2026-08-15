@@ -73,6 +73,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.hivemq.mqtt.client)
     implementation(libs.commons.net)
+    // Transitive via hivemq-mqtt-client but declared `implementation` there,
+    // so InsecureTrustManagerFactory isn't on our compile classpath unless
+    // declared directly too. Version matches what HiveMQ actually pulls in
+    // (confirmed via the resolved runtime classpath).
+    implementation(libs.netty.handler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

@@ -18,18 +18,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.das.p1stouch.AppRestart
 import com.das.p1stouch.ui.configViewModel
 
 /** Port of ui/screens/first_run.py: one-time printer connection setup. Not
  * in the drawer -- reached only as the startDestination when config isn't
- * ready yet, or later via a "Setup" affordance in Settings. */
+ * ready yet, or later via the "Printer Setup" button in Settings. Saving
+ * restarts the app immediately (see [AppRestart]) rather than navigating
+ * anywhere, so [onSkip] is the only way this screen ever hands control back. */
 @Composable
-fun FirstRunScreen(onDone: (skippedToHome: Boolean) -> Unit) {
+fun FirstRunScreen(onSkip: () -> Unit) {
     val vm = configViewModel(::FirstRunViewModel)
     val config by vm.config.collectAsState()
+    val context = LocalContext.current
 
     var ip by remember { mutableStateOf("") }
     var serial by remember { mutableStateOf("") }
@@ -75,13 +80,17 @@ fun FirstRunScreen(onDone: (skippedToHome: Boolean) -> Unit) {
                 error = "All fields are required."
             } else {
                 error = null
-                vm.save(ip, serial, accessCode) { onDone(false) }
+                // The saved backend choice only takes effect on the next
+                // process start (App.backend is `by lazy`) -- restart
+                // immediately instead of the Python app's "please restart
+                // manually" Settings message.
+                vm.save(ip, serial, accessCode) { AppRestart.restart(context) }
             }
         }) {
-            Text("Save & Continue")
+            Text("Save & Restart")
         }
 
-        OutlinedButton(onClick = { onDone(true) }) {
+        OutlinedButton(onClick = onSkip) {
             Text("Skip (use demo mode)")
         }
     }
