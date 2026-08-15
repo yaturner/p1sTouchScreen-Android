@@ -3,6 +3,7 @@ package com.das.p1stouch.printer
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import com.das.p1stouch.printer.camera.CameraStreamClient
 import com.das.p1stouch.printer.ftp.FtpPrinterClient
 import com.das.p1stouch.printer.mqtt.MqttPrinterClient
 import com.das.p1stouch.printer.mqtt.PrinterCommands
@@ -32,10 +33,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Backend that talks to a real P1S over the local network: MQTT (M3) +
- * FTP file list/thumbnails (M4). The camera stream (M5) is still a stub,
- * matching the Python app's own build-mock-first-then-real-hardware-
- * one-piece-at-a-time discipline.
+ * Backend that talks to a real P1S over the local network: MQTT (M3),
+ * FTP file list/thumbnails (M4), and the camera stream (M5).
  */
 class RealBackend(
     ip: String,
@@ -47,6 +46,7 @@ class RealBackend(
     private val scope = CoroutineScope(SupervisorJob())
     private val mqttClient = MqttPrinterClient(ip, accessCode, serial)
     private val ftpClient = FtpPrinterClient(ip, accessCode)
+    private val cameraClient = CameraStreamClient(ip, accessCode)
     private val thumbnailCacheDir = File(cacheDir, "thumbnails").apply { mkdirs() }
     // One at a time, not a coroutine-per-file fan-out: firing dozens of
     // concurrent download attempts (even mutex-serialized down to one FTP
@@ -76,6 +76,7 @@ class RealBackend(
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
     private var pushAllRefreshJob: Job? = null
+    private var cameraJob: Job? = null
     private var wantsConnection = false
 
     // -- lifecycle -----------------------------------------------------
@@ -86,6 +87,7 @@ class RealBackend(
         startWatchdog()
         startPushAllRefresh()
         startThumbnailWorker()
+        startCameraStream()
     }
 
     override suspend fun disconnect() {
@@ -93,11 +95,27 @@ class RealBackend(
         watchdogJob?.cancel(); watchdogJob = null
         pushAllRefreshJob?.cancel(); pushAllRefreshJob = null
         thumbnailWorkerJob?.cancel(); thumbnailWorkerJob = null
+        cameraJob?.cancel(); cameraJob = null
         reportJob?.cancel(); reportJob = null
         reconnectJob?.cancel(); reconnectJob = null
         mqttClient.disconnect()
         ftpClient.disconnect()
         _state.update { it.copy(connection = ConnectionState.DISCONNECTED) }
+    }
+
+    // Runs continuously alongside MQTT/FTP while connected, same as the
+    // Python app's CameraPollThread -- not gated on the Print Monitor
+    // screen actually being visible, since PrinterBackend has no concept
+    // of "which screen is active" (that would be a UI-layer concern this
+    // interface deliberately doesn't know about).
+    private fun startCameraStream() {
+        if (cameraJob?.isActive == true) return
+        cameraJob = scope.launch {
+            cameraClient.frames().collect { jpegBytes ->
+                val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+                if (bitmap != null) _cameraFrames.emit(bitmap)
+            }
+        }
     }
 
     private fun startThumbnailWorker() {
