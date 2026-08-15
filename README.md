@@ -31,6 +31,11 @@ file (until it's re-sliced/re-uploaded). If you'd rather skip this
 entirely, turn on **Skip thumbnails** in Settings -- Print Files will
 still list every file, just without previews.
 
+**Theme**: Settings has a Dark / Light / Match Phone choice, applied
+immediately (no restart). The Python original is dark-only by design
+(a fixed Pi kiosk display), but a phone/tablet already has its own
+system theme worth respecting.
+
 ## Screenshots
 
 | Home | Side-drawer nav | Print Files |
