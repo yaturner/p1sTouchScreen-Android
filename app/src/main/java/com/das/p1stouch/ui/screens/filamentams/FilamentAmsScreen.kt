@@ -11,9 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -90,12 +91,12 @@ private fun AmsSlotCard(tray: AMSTray, onLoad: () -> Unit, onUnload: () -> Unit,
             Text(label, style = MaterialTheme.typography.bodyMedium)
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+                Button(
                     onClick = onLoad,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                 ) { Text("Load", style = MaterialTheme.typography.labelMedium, maxLines = 1) }
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = onUnload,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
