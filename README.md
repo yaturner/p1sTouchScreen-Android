@@ -38,9 +38,9 @@ system theme worth respecting.
 
 ## Screenshots
 
-| Home | Side-drawer nav | Print Files |
-| --- | --- | --- |
-| ![Home screen](resources/screenshots/home.png) | ![Side-drawer navigation](resources/screenshots/drawer.png) | ![Print Files screen, listing real files off a live printer](resources/screenshots/print_files.png) |
+| Home | Side-drawer nav | Print Files | Settings |
+| --- | --- | --- | --- |
+| ![Home screen](resources/screenshots/home.png) | ![Side-drawer navigation](resources/screenshots/drawer.png) | ![Print Files screen, listing real files off a live printer](resources/screenshots/print_files.png) | ![Settings screen with the Skip Thumbnails and Dark/Light/Match Phone theme options](resources/screenshots/settings.png) |
 
 ## Disclaimer / limitation of liability
 
