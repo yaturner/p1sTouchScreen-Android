@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.das.p1stouch.data.PrinterConfig
 import com.das.p1stouch.state.ConnectionState
 import com.das.p1stouch.state.PrinterState
 import com.das.p1stouch.ui.components.ConnectionOverlay
@@ -38,6 +39,7 @@ import com.das.p1stouch.ui.drawer.AppDrawerContent
 import com.das.p1stouch.ui.navigation.P1SNavHost
 import com.das.p1stouch.ui.navigation.Screen
 import com.das.p1stouch.ui.theme.P1STheme
+import com.das.p1stouch.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 
 /** Top-level app shell: side-drawer nav + Scaffold (top bar, HmsBanner slot,
@@ -54,6 +56,11 @@ fun P1SApp(startDestination: String) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    // Read directly from the config repository (not through a screen-scoped
+    // ViewModel) so the theme reacts live the moment Settings saves a new
+    // choice -- no restart, unlike the backend-affecting settings.
+    val config by localConfigRepository().config.collectAsState(initial = PrinterConfig())
+    val themeMode = ThemeMode.fromConfigValue(config.themeMode)
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -80,7 +87,7 @@ fun P1SApp(startDestination: String) {
         wasPrinting = state.isPrinting
     }
 
-    P1STheme {
+    P1STheme(themeMode = themeMode) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {

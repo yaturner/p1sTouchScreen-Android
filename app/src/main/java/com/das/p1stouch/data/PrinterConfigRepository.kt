@@ -22,6 +22,7 @@ data class PrinterConfig(
     // download+cache every file's thumbnail. Lets a user with a large/slow
     // library skip that entirely.
     val skipThumbnails: Boolean = false,
+    val themeMode: String = "dark", // "dark" | "light" | "system" -- see ui.theme.ThemeMode
 ) {
     val isPrinterComplete: Boolean
         get() = ip.isNotBlank() && accessCode.isNotBlank() && serial.isNotBlank()
@@ -38,6 +39,7 @@ class PrinterConfigRepository(private val context: Context) {
         val SERIAL = stringPreferencesKey("printer_serial")
         val BACKEND = stringPreferencesKey("app_backend")
         val SKIP_THUMBNAILS = booleanPreferencesKey("skip_thumbnails")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
     }
 
     val config: Flow<PrinterConfig> = context.dataStore.data.map { prefs ->
@@ -47,6 +49,7 @@ class PrinterConfigRepository(private val context: Context) {
             serial = prefs[Keys.SERIAL] ?: "",
             backend = prefs[Keys.BACKEND] ?: "mock",
             skipThumbnails = prefs[Keys.SKIP_THUMBNAILS] ?: false,
+            themeMode = prefs[Keys.THEME_MODE] ?: "dark",
         )
     }
 
@@ -57,6 +60,7 @@ class PrinterConfigRepository(private val context: Context) {
             prefs[Keys.SERIAL] = config.serial
             prefs[Keys.BACKEND] = config.backend
             prefs[Keys.SKIP_THUMBNAILS] = config.skipThumbnails
+            prefs[Keys.THEME_MODE] = config.themeMode
         }
     }
 }

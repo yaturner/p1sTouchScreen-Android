@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import com.das.p1stouch.AppRestart
 import com.das.p1stouch.BuildConfig
 import com.das.p1stouch.ui.configViewModel
 import com.das.p1stouch.ui.localBackend
+import com.das.p1stouch.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 
 /** Port of ui/screens/settings.py, minus the desktop/kiosk-Pi-specific
@@ -92,6 +94,16 @@ fun SettingsScreen(onSetup: () -> Unit) {
             )
         }
 
+        Column {
+            Text("Theme", style = MaterialTheme.typography.bodyLarge)
+            val currentMode = ThemeMode.fromConfigValue(config.themeMode)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ThemeOption("Dark", ThemeMode.DARK, currentMode) { vm.save(config.copy(themeMode = it.configValue)) }
+                ThemeOption("Light", ThemeMode.LIGHT, currentMode) { vm.save(config.copy(themeMode = it.configValue)) }
+                ThemeOption("Match Phone", ThemeMode.SYSTEM, currentMode) { vm.save(config.copy(themeMode = it.configValue)) }
+            }
+        }
+
         Text("App version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)
         Text("Backend: ${config.backend}", style = MaterialTheme.typography.bodyLarge)
 
@@ -102,5 +114,13 @@ fun SettingsScreen(onSetup: () -> Unit) {
         Button(onClick = { activity?.finishAffinity() }) {
             Text("Exit App")
         }
+    }
+}
+
+@Composable
+private fun ThemeOption(label: String, mode: ThemeMode, current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RadioButton(selected = mode == current, onClick = { onSelect(mode) })
+        Text(label, modifier = Modifier.padding(end = 12.dp))
     }
 }
