@@ -13,6 +13,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
@@ -39,9 +41,9 @@ import com.das.p1stouch.ui.theme.P1STheme
 import kotlinx.coroutines.launch
 
 /** Top-level app shell: side-drawer nav + Scaffold (top bar, HmsBanner slot,
- * NavHost content, ConnectionOverlay scrim). Mirrors MainWindow's role in
- * the Python app -- owns navigation and wires backend state to the pieces
- * that aren't a specific screen. */
+ * error snackbar, NavHost content, ConnectionOverlay scrim). Mirrors
+ * MainWindow's role in the Python app -- owns navigation and wires backend
+ * state to the pieces that aren't a specific screen. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun P1SApp(startDestination: String) {
@@ -50,10 +52,22 @@ fun P1SApp(startDestination: String) {
     val state by appViewModel.state.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val currentScreen = Screen.byRoute(currentRoute)
+
+    // Command failures (publish errors, FTP listing failures, connection
+    // drops) surface as transient toasts here rather than a persistent
+    // banner -- the HmsBanner above is reserved for the printer's own
+    // ongoing HMS conditions, which is a different kind of "error" (state
+    // to keep showing) than "your last tap didn't go through" (an event).
+    LaunchedEffect(Unit) {
+        appViewModel.errors.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     // Auto-navigate to Print Monitor when a print starts while on Home --
     // port of MainWindow._on_state_changed's edge-trigger.
@@ -76,6 +90,7 @@ fun P1SApp(startDestination: String) {
             },
         ) {
             Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
                 topBar = {
                     TopAppBar(
                         title = { Text(currentScreen?.title ?: "P1S Touch") },

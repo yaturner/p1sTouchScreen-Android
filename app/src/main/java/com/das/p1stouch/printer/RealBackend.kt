@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import com.das.p1stouch.printer.camera.CameraStreamClient
 import com.das.p1stouch.printer.ftp.FtpPrinterClient
+import com.das.p1stouch.printer.hms.HmsCodes
 import com.das.p1stouch.printer.mqtt.MqttPrinterClient
 import com.das.p1stouch.printer.mqtt.PrinterCommands
 import com.das.p1stouch.printer.mqtt.PrinterTelemetry
@@ -42,6 +43,7 @@ class RealBackend(
     serial: String,
     cacheDir: File,
     private val skipThumbnails: Boolean = false,
+    private val hmsCodes: HmsCodes,
 ) : PrinterBackend {
     private val scope = CoroutineScope(SupervisorJob())
     private val mqttClient = MqttPrinterClient(ip, accessCode, serial)
@@ -155,7 +157,7 @@ class RealBackend(
                         onUnexpectedDisconnect()
                     }
                     .collect { payload ->
-                        _state.update { prev -> PrinterTelemetry.parse(payload, prev) }
+                        _state.update { prev -> PrinterTelemetry.parse(payload, prev, hmsCodes) }
                     }
             }
             // The printer only streams full telemetry after this is

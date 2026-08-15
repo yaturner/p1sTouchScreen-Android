@@ -1,5 +1,6 @@
 package com.das.p1stouch.printer.mqtt
 
+import com.das.p1stouch.printer.hms.HmsCodes
 import com.das.p1stouch.state.AMSTray
 import com.das.p1stouch.state.GcodeState
 import com.das.p1stouch.state.PrinterState
@@ -30,7 +31,7 @@ object PrinterTelemetry {
 
     /** [previous] carries forward anything a given payload doesn't touch
      * (MQTT report pushes are often partial updates, not full snapshots). */
-    fun parse(payload: String, previous: PrinterState): PrinterState {
+    fun parse(payload: String, previous: PrinterState, hmsCodes: HmsCodes): PrinterState {
         val root = json.parseToJsonElement(payload).jsonObject
         val print = root["print"]?.jsonObject ?: return previous
 
@@ -64,7 +65,7 @@ object PrinterTelemetry {
             lightOn = print.lightsReportMode()?.let { it == "on" } ?: previous.lightOn,
             fanSpeeds = print.intField("fan_gear")?.let(::unpackFanGear) ?: previous.fanSpeeds,
             amsTrays = print.amsTraysOrNull() ?: previous.amsTrays,
-            hmsErrors = print.hmsEntriesOrNull() ?: previous.hmsErrors,
+            hmsErrors = print.hmsEntriesOrNull(hmsCodes) ?: previous.hmsErrors,
         )
     }
 
@@ -127,20 +128,13 @@ object PrinterTelemetry {
         }
     }
 
-    // real_backend.py's own addition (not part of bambulabs_api): global
-    // tray_now index, any out-of-[0,4) value treated as "none active".
-    private fun JsonObject.hmsEntriesOrNull(): List<String>? {
+    private fun JsonObject.hmsEntriesOrNull(hmsCodes: HmsCodes): List<String>? {
         val entries = this["hms"] as? JsonArray ?: return null
         return entries.mapNotNull { entry ->
             val obj = entry as? JsonObject ?: return@mapNotNull null
             val attr = obj.intField("attr") ?: return@mapNotNull null
             val code = obj.intField("code") ?: return@mapNotNull null
-            // Full human-readable lookup (hms_codes_en.json.gz) lands in a
-            // later milestone; for now, the same wiki-style hex string the
-            // Python app formats as HMS_<code_string>.
-            val attrHex = String.format("%08x", attr)
-            val codeHex = String.format("%08x", code)
-            "HMS_${attrHex.substring(0, 4)}_${attrHex.substring(4)}_${codeHex.substring(0, 4)}_${codeHex.substring(4)}"
+            hmsCodes.describe(attr, code)
         }
     }
 

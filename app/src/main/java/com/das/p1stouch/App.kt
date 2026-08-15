@@ -5,6 +5,7 @@ import com.das.p1stouch.data.PrinterConfigRepository
 import com.das.p1stouch.printer.MockBackend
 import com.das.p1stouch.printer.PrinterBackend
 import com.das.p1stouch.printer.RealBackend
+import com.das.p1stouch.printer.hms.HmsCodes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
@@ -32,7 +33,7 @@ class App : Application() {
     val backend: PrinterBackend by lazy {
         val config = runBlocking { configRepository.config.first() }
         if (config.backend == "real" && config.isPrinterComplete) {
-            RealBackend(config.ip, config.accessCode, config.serial, cacheDir, config.skipThumbnails)
+            RealBackend(config.ip, config.accessCode, config.serial, cacheDir, config.skipThumbnails, HmsCodes(assets))
         } else {
             MockBackend(appScope)
         }
