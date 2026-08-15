@@ -120,12 +120,25 @@ object PrinterTelemetry {
                 AMSTray(
                     slotIndex = i,
                     filamentType = tray.stringField("tray_type"),
-                    colorHex = tray.stringField("tray_color"),
+                    colorHex = normalizeColor(tray.stringField("tray_color")),
                     isActive = i == activeIndex,
                     isEmpty = false,
                 )
             }
         }
+    }
+
+    // tray_color arrives as 8-hex RRGGBBAA (alpha suffix, no '#'); a 3MF's
+    // slice_info.config records filament color as "#RRGGBB" -- normalizing
+    // both to the same "#RRGGBB" shape here is what lets AmsMapping's exact
+    // type+color match actually succeed. Without this every real print fell
+    // through to the color-unconfirmed/no-material path and needed the
+    // mismatch dialog even for an exact match -- found live, port of the
+    // Python app's real_backend.py _normalize_color.
+    private fun normalizeColor(trayColor: String?): String? {
+        val stripped = trayColor?.removePrefix("#") ?: return null
+        if (stripped.length < 6) return null
+        return "#${stripped.substring(0, 6).uppercase()}"
     }
 
     private fun JsonObject.hmsEntriesOrNull(hmsCodes: HmsCodes): List<String>? {

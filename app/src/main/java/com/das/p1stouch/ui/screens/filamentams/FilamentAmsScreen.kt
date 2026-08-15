@@ -106,16 +106,17 @@ private fun AmsSlotCard(tray: AMSTray, onLoad: () -> Unit, onUnload: () -> Unit,
     }
 }
 
-// tray_color from the printer's telemetry is "RRGGBBAA" (see
-// PrinterTelemetry.amsTraysOrNull) -- alpha is ignored here since the
-// swatch should always render fully opaque regardless of the printer's
-// own alpha byte, matching the Python app's simple color-or-fallback logic.
+// AMSTray.colorHex is normalized to "#RRGGBB" at the source (see
+// PrinterTelemetry.normalizeColor / MockBackend's own literals) -- alpha
+// from the printer's raw RRGGBBAA is already dropped there, matching the
+// Python app's simple color-or-fallback logic.
 private fun parseAmsColor(hex: String?): Color {
-    if (hex == null || hex.length < 6) return Color(0xFF3A3A3A)
+    val stripped = hex?.removePrefix("#") ?: return Color(0xFF3A3A3A)
+    if (stripped.length < 6) return Color(0xFF3A3A3A)
     return try {
-        val r = hex.substring(0, 2).toInt(16)
-        val g = hex.substring(2, 4).toInt(16)
-        val b = hex.substring(4, 6).toInt(16)
+        val r = stripped.substring(0, 2).toInt(16)
+        val g = stripped.substring(2, 4).toInt(16)
+        val b = stripped.substring(4, 6).toInt(16)
         Color(r, g, b)
     } catch (e: NumberFormatException) {
         Color(0xFF3A3A3A)
