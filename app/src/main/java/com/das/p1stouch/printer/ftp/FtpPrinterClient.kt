@@ -41,22 +41,52 @@ class FtpPrinterClient(
     }
 
     suspend fun downloadFile(path: String): ByteArray? = mutex.withLock {
-        // Commons Net's socket reads have no timeout by default, so a data
-        // connection the server never actually sends bytes on blocks
-        // forever -- confirmed live (every thumbnail download hung
-        // indefinitely with no exception until DATA_TIMEOUT was added).
-        // Both the client-level timeout AND this coroutine-level one are
-        // belt-and-suspenders: the client one should fire first, but if the
-        // blocking socket read somehow isn't interruptible from Kotlin's
-        // side, this still bounds how long the mutex stays held.
+        // This printer's FTP data transfers are slow -- observed ~85 KB/s
+        // for a real 3MF over FTPS on this LAN, so DOWNLOAD_TIMEOUT_MS is
+        // sized for the 15 MB thumbnail cap (see RealBackend's
+        // MAX_THUMBNAIL_FILE_BYTES), not for a "should be instant" LAN
+        // assumption. withTimeoutOrNull can't actually interrupt the
+        // blocking retrieveFileStream()/read() calls below (coroutine
+        // cancellation only takes effect at suspension points, and none of
+        // this is one) -- confirmed live that on timeout it just discards
+        // an otherwise-successful result once the blocking call eventually
+        // returns, rather than freeing the mutex early. It's kept anyway as
+        // an outer bound in case the printer's FTP daemon wedges again (see
+        // this class's doc comment).
         withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) {
             withContext(Dispatchers.IO) {
-                val c = ensureConnected()
+                // A fresh connection per download, not the shared/reused one
+                // from listCacheDir() -- this printer's embedded FTP daemon
+                // has low connection tolerance (confirmed live: it can get
+                // wedged for every client, including totally different FTP
+                // stacks, after enough accumulated sessions), so connections
+                // are opened right before use and closed immediately after,
+                // matching the reference Python client's per-call connect
+                // pattern rather than Commons Net's normal reuse idiom.
+                val c = freshConnection()
                 val buffer = ByteArrayOutputStream()
-                val ok = c.retrieveFile(path, buffer)
-                if (!ok) {
-                    Log.w(TAG, "retrieveFile($path) returned false; reply=${c.replyString}")
+                val ins = c.retrieveFileStream(path)
+                var ok = false
+                if (ins != null) {
+                    val chunk = ByteArray(8192)
+                    var n = ins.read(chunk)
+                    while (n >= 0) {
+                        buffer.write(chunk, 0, n)
+                        n = ins.read(chunk)
+                    }
+                    ins.close()
+                    ok = c.completePendingCommand()
                 }
+                if (!ok) {
+                    Log.w(TAG, "download failed for $path; reply=${c.replyString}")
+                }
+                try {
+                    c.logout()
+                    c.disconnect()
+                } catch (e: Exception) {
+                    // best-effort cleanup; see the connection-tolerance note above
+                }
+                if (client === c) client = null
                 if (ok) buffer.toByteArray() else null
             }
         }
@@ -74,14 +104,17 @@ class FtpPrinterClient(
 
     private fun ensureConnected(): FTPSClient {
         client?.takeIf { it.isConnected }?.let { return it }
+        return freshConnection()
+    }
 
+    private fun freshConnection(): FTPSClient {
         // Implicit FTPS: TLS handshake happens immediately on connect, not
         // via an explicit AUTH TLS command (that's "explicit" FTPS).
         val c = FTPSClient("TLS", true)
         c.trustManager = InsecureTrustManagerFactory.INSTANCE.trustManagers[0] as javax.net.ssl.X509TrustManager
         // No timeout is set by default, so a socket read that never gets
-        // the bytes it expects blocks forever -- this is what was actually
-        // happening (see downloadFile's comment).
+        // the bytes it expects blocks forever -- relevant if the printer's
+        // FTP daemon wedges again (see this class's doc comment).
         c.connectTimeout = CONNECT_TIMEOUT_MS
         c.connect(ip, 990)
         c.soTimeout = SOCKET_TIMEOUT_MS
@@ -102,6 +135,10 @@ class FtpPrinterClient(
         private const val TAG = "FtpPrinterClient"
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val SOCKET_TIMEOUT_MS = 15_000
-        private const val DOWNLOAD_TIMEOUT_MS = 20_000L
+        // Sized for the 15 MB thumbnail cap (RealBackend.MAX_THUMBNAIL_FILE_BYTES)
+        // at this printer's observed real-world FTPS transfer speed (~85 KB/s
+        // measured live, well under typical LAN speeds -- likely the printer's
+        // embedded CPU being the bottleneck for TLS, not the network).
+        private const val DOWNLOAD_TIMEOUT_MS = 180_000L
     }
 }

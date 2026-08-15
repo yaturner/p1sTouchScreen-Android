@@ -263,7 +263,7 @@ class RealBackend(
             null
         } ?: return
         val pngBytes = try {
-            ThumbnailExtractor.extractPlatePng(zipBytes)
+            withContext(Dispatchers.IO) { ThumbnailExtractor.extractPlatePng(zipBytes, thumbnailCacheDir) }
         } catch (e: Exception) {
             Log.w(TAG, "thumbnail extraction threw for $path", e)
             null
