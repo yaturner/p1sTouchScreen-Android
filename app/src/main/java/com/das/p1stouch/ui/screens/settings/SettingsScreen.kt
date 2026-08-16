@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,6 +50,7 @@ fun SettingsScreen(onSetup: () -> Unit) {
     val activity = context as? ComponentActivity
 
     var codeRevealed by remember { mutableStateOf(false) }
+    var showSetupWarning by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -79,9 +82,35 @@ fun SettingsScreen(onSetup: () -> Unit) {
             }) {
                 Text(if (isConnected) "Disconnect" else "Reconnect")
             }
-            OutlinedButton(onClick = onSetup) {
+            OutlinedButton(onClick = {
+                // Only worth warning about if there's an actual live
+                // connection to lose -- saving new settings restarts the
+                // app (see FirstRunScreen), which drops whatever's
+                // currently connected. Nothing to warn about if already
+                // disconnected.
+                if (isConnected) showSetupWarning = true else onSetup()
+            }) {
                 Text("Printer Setup")
             }
+        }
+
+        if (showSetupWarning) {
+            AlertDialog(
+                onDismissRequest = { showSetupWarning = false },
+                title = { Text("Change Printer Settings") },
+                text = {
+                    Text(
+                        "Changing printer settings requires restarting the app, " +
+                            "which will disconnect it from the printer. Continue?",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSetupWarning = false }) { Text("Cancel") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSetupWarning = false; onSetup() }) { Text("Continue") }
+                },
+            )
         }
 
         Row(
