@@ -169,7 +169,10 @@ fun P1SApp(startDestination: String) {
 @Composable
 private fun StatusChip(state: PrinterState) {
     Row(modifier = Modifier.padding(end = 12.dp)) {
-        Text("N ${fmt(state.nozzleTemp)}/${fmt(state.nozzleTarget)}°  B ${fmt(state.bedTemp)}/${fmt(state.bedTarget)}°  ${dot(state.connection)}")
+        Text(
+            "N ${fmt(state.nozzleTemp)}/${fmt(state.nozzleTarget)}°  B ${fmt(state.bedTemp)}/${fmt(state.bedTarget)}°" +
+                "  ${dot(state.connection)}",
+        )
     }
 }
 

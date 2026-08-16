@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.das.p1stouch.AppRestart
 import com.das.p1stouch.BuildConfig
+import com.das.p1stouch.state.ConnectionState
 import com.das.p1stouch.ui.configViewModel
 import com.das.p1stouch.ui.localBackend
 import com.das.p1stouch.ui.theme.ThemeMode
@@ -41,6 +42,7 @@ fun SettingsScreen(onSetup: () -> Unit) {
     val vm = configViewModel(::SettingsViewModel)
     val backend = localBackend()
     val config by vm.config.collectAsState()
+    val backendState by backend.state.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val activity = context as? ComponentActivity
@@ -62,14 +64,20 @@ fun SettingsScreen(onSetup: () -> Unit) {
         }
         Text(maskedCode, modifier = Modifier.clickable { codeRevealed = !codeRevealed })
 
+        Text("Connection: ${connectionStatusLabel(backendState.connection)}")
+
+        val isConnected = backendState.connection == ConnectionState.CONNECTED
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = {
                 scope.launch {
                     backend.disconnect()
-                    backend.connect()
+                    // Only immediately reconnect if that's what was asked for
+                    // -- Disconnect should actually disconnect and stay that
+                    // way, not bounce right back.
+                    if (!isConnected) backend.connect()
                 }
             }) {
-                Text("Reconnect")
+                Text(if (isConnected) "Disconnect" else "Reconnect")
             }
             OutlinedButton(onClick = onSetup) {
                 Text("Printer Setup")
@@ -116,6 +124,15 @@ fun SettingsScreen(onSetup: () -> Unit) {
             Text("Exit App")
         }
     }
+}
+
+// Matches Python's settings.py: state.connection.name.title() --
+// "Connected"/"Connecting"/"Reconnecting"/"Disconnected".
+private fun connectionStatusLabel(c: ConnectionState): String = when (c) {
+    ConnectionState.CONNECTED -> "Connected"
+    ConnectionState.CONNECTING -> "Connecting"
+    ConnectionState.RECONNECTING -> "Reconnecting"
+    ConnectionState.DISCONNECTED -> "Disconnected"
 }
 
 @Composable
