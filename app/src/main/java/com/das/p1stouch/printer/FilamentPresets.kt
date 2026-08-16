@@ -3,11 +3,14 @@ package com.das.p1stouch.printer
 /**
  * Curated filament presets for the AMS slot "Edit" dialog. Port of the
  * Python app's filament_presets.py -- see that file's docstring for why
- * this only distinguishes Bambu Lab, PolyLite, and PolyTerra by brand,
- * with everything else (Overature/Generic/eSUN) sharing the same
- * "Generic" (GFxx99) preset list: the AMS RFID/preset system has no
- * separate index for other third-party brands, so the manufacturer
- * choice for those three is informational only.
+ * this only distinguishes Bambu Lab, PolyLite, and PolyTerra by brand at
+ * the protocol level (bambulabs_api's Filament enum has no tray_info_idx
+ * for other third-party brands). Overature/eSUN's presets below use
+ * their own real product-line names (e.g. eSUN's "PLA+") but are still
+ * mapped onto Bambu's Generic PLA tray_info_idx (GFL99) under the hood --
+ * only the label is brand-specific, not the underlying MQTT payload.
+ * "Generic" (the explicit catch-all manufacturer) gets the full Generic
+ * material list instead of a brand-specific one.
  */
 data class FilamentPreset(
     val label: String,
@@ -54,9 +57,16 @@ object FilamentPresets {
         "Bambu Lab" to BAMBU_PRESETS,
         "PolyLite" to listOf(FilamentPreset("PLA", "GFL00", 190, 250, "PLA")),
         "PolyTerra" to listOf(FilamentPreset("PLA", "GFL01", 190, 250, "PLA")),
-        "Overature" to GENERIC_PRESETS,
+        // Overature/eSUN product-line names, still mapped onto the Generic
+        // PLA tray_info_idx (GFL99) -- there's no brand-specific index for
+        // either in bambulabs_api's enum, only the label differs from
+        // "Generic".
+        "Overature" to listOf(
+            FilamentPreset("Matte PLA", "GFL99", 190, 230, "PLA"),
+            FilamentPreset("PLA", "GFL99", 190, 250, "PLA"),
+        ),
         "Generic" to GENERIC_PRESETS,
-        "eSUN" to GENERIC_PRESETS,
+        "eSUN" to listOf(FilamentPreset("PLA+", "GFL99", 190, 230, "PLA")),
     )
 
     fun presetKey(manufacturer: String, label: String): String = "$manufacturer|$label"
