@@ -190,6 +190,8 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
         tick()
     }
 
+    override suspend fun syncAms() = tick() // nothing to actually re-request in mock mode
+
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
         _fileList.value = MOCK_FILES

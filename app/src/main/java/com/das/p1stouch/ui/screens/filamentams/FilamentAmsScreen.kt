@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,6 +48,13 @@ fun FilamentAmsScreen() {
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            // Re-requests the printer's current AMS state immediately --
+            // no local command forces the AMS hardware itself to re-scan a
+            // spool's RFID tag, this just skips the wait for the next
+            // periodic refresh (e.g. right after swapping a spool).
+            OutlinedButton(onClick = { vm.sync() }) { Text("Sync") }
+        }
         for (rowStart in 0 until 4 step columns) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 for (i in rowStart until rowStart + columns) {

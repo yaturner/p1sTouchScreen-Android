@@ -317,6 +317,12 @@ class RealBackend(
 
     override suspend fun unloadFilament(slot: Int) = publishSafely(PrinterCommands.unloadFilament())
 
+    // Same pushAll() request already sent on connect and periodically
+    // (see startPushAllRefresh) -- no local command forces the AMS to
+    // re-scan RFID, this just re-requests full state immediately instead
+    // of waiting for the next periodic refresh.
+    override suspend fun syncAms() = publishSafely(PrinterCommands.pushAll())
+
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
         val files = try {
