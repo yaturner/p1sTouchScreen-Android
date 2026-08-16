@@ -231,7 +231,7 @@ class RealBackend(
             _printStartWarnings.emit(result.warning)
             return
         }
-        publishSafely(PrinterCommands.startPrint(path, plate, result.mapping))
+        beginPrint(path, plate, result.mapping)
     }
 
     private suspend fun resolveAmsMappingForFile(path: String): AmsMappingResult {
@@ -254,11 +254,39 @@ class RealBackend(
     override suspend fun confirmPendingPrint() {
         val (path, plate, mapping) = pendingPrint ?: return
         pendingPrint = null
-        publishSafely(PrinterCommands.startPrint(path, plate, mapping))
+        beginPrint(path, plate, mapping)
     }
 
     override suspend fun cancelPendingPrint() {
         pendingPrint = null
+    }
+
+    // project_file's inline ams_mapping does not reliably make the printer
+    // feed filament into a completely empty/unloaded toolhead -- confirmed
+    // live on the Python app's real printer (tray_now stayed unset
+    // indefinitely, zero AMS motor activity, the print sat at RUNNING with
+    // both heaters at target but layer/percent never moving). The same
+    // ams_change_filament command loadFilament() already sends does
+    // reliably trigger the swap, so explicitly request it and wait for the
+    // AMS to actually report the target slot active before publishing
+    // project_file, rather than trusting it to handle a cold load itself.
+    private suspend fun beginPrint(path: String, plate: Int, mapping: List<Int>) {
+        val targetSlot = mapping.firstOrNull()
+        if (targetSlot != null && !ensureTrayLoaded(targetSlot)) {
+            _errors.emit("Timed out waiting for the AMS to load the needed filament -- starting the print anyway.")
+        }
+        publishSafely(PrinterCommands.startPrint(path, plate, mapping))
+    }
+
+    private suspend fun ensureTrayLoaded(targetSlot: Int): Boolean {
+        if (_state.value.amsTrays.firstOrNull { it.isActive }?.slotIndex == targetSlot) return true
+        loadFilament(targetSlot)
+        val deadline = System.currentTimeMillis() + AMS_LOAD_TIMEOUT_MS
+        while (System.currentTimeMillis() < deadline) {
+            delay(AMS_LOAD_POLL_MS)
+            if (_state.value.amsTrays.firstOrNull { it.isActive }?.slotIndex == targetSlot) return true
+        }
+        return false
     }
 
     override suspend fun pausePrint() = publishSafely(PrinterCommands.pausePrint())
@@ -394,6 +422,8 @@ class RealBackend(
         private const val SUBSCRIBE_SETTLE_MS = 500L
         private const val PUSHALL_REFRESH_MS = 50_000L
         private const val DEFAULT_NOZZLE_TARGET_FOR_SWAP = 220
+        private const val AMS_LOAD_TIMEOUT_MS = 60_000L
+        private const val AMS_LOAD_POLL_MS = 1500L
         // 3MF files above this size aren't worth a full download just for
         // the embedded preview PNG -- no cheap partial-fetch of one zip
         // member over this printer's FTP server.
