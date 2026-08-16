@@ -275,6 +275,8 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
                 fanSpeeds = fanSpeeds.toMap(),
                 amsTrays = amsTrays.toList(),
                 amsBusy = amsBusy,
+                amsTemp = 32.5,
+                amsHumidityPercent = 35,
                 hmsErrors = emptyList(),
                 gcodeState = gcodeState,
                 printPercent = printPercent,

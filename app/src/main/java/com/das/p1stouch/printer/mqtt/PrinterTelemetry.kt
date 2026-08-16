@@ -66,6 +66,8 @@ object PrinterTelemetry {
             fanSpeeds = print.intField("fan_gear")?.let(::unpackFanGear) ?: previous.fanSpeeds,
             amsTrays = print.amsTraysOrNull() ?: previous.amsTrays,
             amsBusy = print.isAmsBusy() ?: previous.amsBusy,
+            amsTemp = print.amsUnitTemp() ?: previous.amsTemp,
+            amsHumidityPercent = print.amsUnitHumidityPercent() ?: previous.amsHumidityPercent,
             hmsErrors = print.hmsEntriesOrNull(hmsCodes) ?: previous.hmsErrors,
         )
     }
@@ -142,6 +144,22 @@ object PrinterTelemetry {
         val trayNow = amsBlock.stringField("tray_now") ?: return null
         return trayTar != trayNow
     }
+
+    // AMS unit's own sensor readings (not per-tray), at ams.ams[0].temp /
+    // .humidity_raw -- confirmed present on this printer's live telemetry
+    // (e.g. temp=34.4, humidity_raw=40, read as ~40% RH). "humidity" (a
+    // coarse 1-5 level, distinct from humidity_raw) is deliberately not
+    // surfaced -- its exact meaning wasn't confirmed live, unlike
+    // humidity_raw's plain percent shape.
+    private fun JsonObject.amsUnit(): JsonObject? {
+        val amsBlock = this["ams"]?.jsonObject ?: return null
+        val units = amsBlock["ams"] as? JsonArray ?: return null
+        return units.firstOrNull()?.jsonObject
+    }
+
+    private fun JsonObject.amsUnitTemp(): Double? = amsUnit()?.doubleField("temp")
+
+    private fun JsonObject.amsUnitHumidityPercent(): Int? = amsUnit()?.doubleField("humidity_raw")?.toInt()
 
     // tray_color arrives as 8-hex RRGGBBAA (alpha suffix, no '#'); a 3MF's
     // slice_info.config records filament color as "#RRGGBB" -- normalizing

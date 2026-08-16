@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.das.p1stouch.state.AMSTray
 import com.das.p1stouch.ui.backendViewModel
+import kotlin.math.roundToInt
 
 /** Port of ui/screens/filament_ams.py + ui/widgets/ams_slot.py: an AMS
  * grid, each slot showing a color swatch, filament type (or "Empty"), an
@@ -48,7 +50,14 @@ fun FilamentAmsScreen() {
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val temp = state.amsTemp?.let { "${it.roundToInt()}°C" } ?: "--°C"
+            val humidity = state.amsHumidityPercent?.let { "$it% RH" } ?: "--% RH"
+            Text("AMS: $temp · $humidity", style = MaterialTheme.typography.bodyMedium)
             // Re-requests the printer's current AMS state immediately --
             // no local command forces the AMS hardware itself to re-scan a
             // spool's RFID tag, this just skips the wait for the next

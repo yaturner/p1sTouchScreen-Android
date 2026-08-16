@@ -53,6 +53,11 @@ data class PrinterState(
     // UI disables Load/Unload/Sync while true, since firing a second swap
     // mid-swap is untested territory.
     val amsBusy: Boolean = false,
+    // AMS unit's own internal sensor readings (not per-tray) -- "temp" and
+    // "humidity_raw" from ams.ams[0], confirmed present on this printer's
+    // live telemetry (e.g. temp=34.4, humidity_raw=40 meaning ~40% RH).
+    val amsTemp: Double? = null,
+    val amsHumidityPercent: Int? = null,
     val hmsErrors: List<String> = emptyList(),
 ) {
     val isPrinting: Boolean
