@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.das.p1stouch.ui.screens.assistant.AssistantScreen
 import com.das.p1stouch.ui.screens.control.ControlScreen
 import com.das.p1stouch.ui.screens.filamentams.FilamentAmsScreen
 import com.das.p1stouch.ui.screens.firstrun.FirstRunScreen
@@ -25,6 +26,7 @@ fun P1SNavHost(navController: NavHostController, startDestination: String) {
         composable(Screen.Settings.route) {
             SettingsScreen(onSetup = { navController.navigate(Screen.FirstRun.route) })
         }
+        composable(Screen.Assistant.route) { AssistantScreen() }
         composable(Screen.FirstRun.route) {
             FirstRunScreen(onSkip = {
                 navController.navigate(Screen.Home.route) {

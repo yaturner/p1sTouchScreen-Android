@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -30,6 +31,7 @@ sealed class Screen(
     data object FilamentAms : Screen("filament_ams", "Filament", Icons.Filled.Refresh, "🧵")
     data object Control : Screen("control", "Control", Icons.Filled.Build, "🎛")
     data object Settings : Screen("settings", "Settings", Icons.Filled.Settings, "⚙")
+    data object Assistant : Screen("assistant", "Assistant", Icons.Filled.Info, "🩺")
     data object FirstRun : Screen("first_run", "Setup")
 
     companion object {
@@ -40,7 +42,7 @@ sealed class Screen(
         // companion's own <clinit> runs) -- observed as a real NPE on device
         // ("getRoute() on a null object reference") until this was made lazy.
         val drawerItems: List<Screen> by lazy {
-            listOf(Home, PrintFiles, PrintMonitor, FilamentAms, Control, Settings)
+            listOf(Home, PrintFiles, PrintMonitor, FilamentAms, Control, Settings, Assistant)
         }
 
         fun byRoute(route: String?): Screen? = when (route) {
@@ -50,6 +52,7 @@ sealed class Screen(
             FilamentAms.route -> FilamentAms
             Control.route -> Control
             Settings.route -> Settings
+            Assistant.route -> Assistant
             FirstRun.route -> FirstRun
             else -> null
         }

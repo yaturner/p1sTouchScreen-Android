@@ -150,7 +150,19 @@ fun P1SApp(startDestination: String) {
             ) { padding ->
                 Box(modifier = Modifier.padding(padding).fillMaxSize()) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        HmsBanner(messages = visibleHmsErrors, onDismiss = { appViewModel.dismissHmsErrors() })
+                        HmsBanner(
+                            messages = visibleHmsErrors,
+                            onDismiss = { appViewModel.dismissHmsErrors() },
+                            onCheckSolution = {
+                                // Same "acknowledged, stop showing it" effect
+                                // as Dismiss -- Check Solution is a stronger
+                                // acknowledgement than a plain dismiss (the
+                                // user is actively going to go read about
+                                // it), not a weaker one.
+                                appViewModel.dismissHmsErrors()
+                                navController.navigate(Screen.Assistant.route) { launchSingleTop = true }
+                            },
+                        )
                         Box(modifier = Modifier.weight(1f)) {
                             P1SNavHost(navController = navController, startDestination = startDestination)
                             // Settings/First Run must stay usable even while
