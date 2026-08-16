@@ -48,6 +48,11 @@ data class PrinterState(
     val lightOn: Boolean? = null,
 
     val amsTrays: List<AMSTray> = emptyList(),
+    // True while the AMS is actively switching trays (a load/unload/print-
+    // triggered swap is in flight) -- see PrinterTelemetry.isAmsBusy(). The
+    // UI disables Load/Unload/Sync while true, since firing a second swap
+    // mid-swap is untested territory.
+    val amsBusy: Boolean = false,
     val hmsErrors: List<String> = emptyList(),
 ) {
     val isPrinting: Boolean

@@ -53,13 +53,15 @@ fun FilamentAmsScreen() {
             // no local command forces the AMS hardware itself to re-scan a
             // spool's RFID tag, this just skips the wait for the next
             // periodic refresh (e.g. right after swapping a spool).
-            OutlinedButton(onClick = { vm.sync() }) { Text("Sync") }
+            // Disabled while busy for the same reason as Load/Unload below.
+            OutlinedButton(onClick = { vm.sync() }, enabled = !state.amsBusy) { Text("Sync") }
         }
         for (rowStart in 0 until 4 step columns) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 for (i in rowStart until rowStart + columns) {
                     AmsSlotCard(
                         tray = byIndex[i] ?: AMSTray(slotIndex = i),
+                        busy = state.amsBusy,
                         onLoad = { vm.load(i) },
                         onUnload = { vm.unload(i) },
                         modifier = Modifier.weight(1f),
@@ -71,7 +73,13 @@ fun FilamentAmsScreen() {
 }
 
 @Composable
-private fun AmsSlotCard(tray: AMSTray, onLoad: () -> Unit, onUnload: () -> Unit, modifier: Modifier = Modifier) {
+private fun AmsSlotCard(
+    tray: AMSTray,
+    busy: Boolean,
+    onLoad: () -> Unit,
+    onUnload: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Card(
         modifier = modifier.border(
             width = if (tray.isActive) 2.dp else 0.dp,
@@ -99,13 +107,17 @@ private fun AmsSlotCard(tray: AMSTray, onLoad: () -> Unit, onUnload: () -> Unit,
             Text(label, style = MaterialTheme.typography.bodyMedium)
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Empty slot: nothing to feed in or retract, so both are
+                // meaningless regardless of busy state.
                 Button(
                     onClick = onLoad,
+                    enabled = !busy && !tray.isEmpty,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                 ) { Text("Load", style = MaterialTheme.typography.labelMedium, maxLines = 1) }
                 FilledTonalButton(
                     onClick = onUnload,
+                    enabled = !busy && !tray.isEmpty,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                 ) { Text("Unload", style = MaterialTheme.typography.labelMedium, maxLines = 1) }

@@ -65,6 +65,7 @@ object PrinterTelemetry {
             lightOn = print.lightsReportMode()?.let { it == "on" } ?: previous.lightOn,
             fanSpeeds = print.intField("fan_gear")?.let(::unpackFanGear) ?: previous.fanSpeeds,
             amsTrays = print.amsTraysOrNull() ?: previous.amsTrays,
+            amsBusy = print.isAmsBusy() ?: previous.amsBusy,
             hmsErrors = print.hmsEntriesOrNull(hmsCodes) ?: previous.hmsErrors,
         )
     }
@@ -126,6 +127,20 @@ object PrinterTelemetry {
                 )
             }
         }
+    }
+
+    // tray_tar is the AMS's current target slot, tray_now is what's
+    // actually active -- they differ while a switch (load/unload, or one
+    // triggered internally by project_file/ams_change_filament) is
+    // physically in progress and match once it settles. Confirmed live
+    // against this exact field pair while building the AMS pre-load fix
+    // (see RealBackend.ensureTrayLoaded). null (not false) means "can't
+    // tell" -- e.g. a partial update missing this block entirely.
+    private fun JsonObject.isAmsBusy(): Boolean? {
+        val amsBlock = this["ams"]?.jsonObject ?: return null
+        val trayTar = amsBlock.stringField("tray_tar") ?: return null
+        val trayNow = amsBlock.stringField("tray_now") ?: return null
+        return trayTar != trayNow
     }
 
     // tray_color arrives as 8-hex RRGGBBAA (alpha suffix, no '#'); a 3MF's

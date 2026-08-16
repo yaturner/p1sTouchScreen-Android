@@ -177,16 +177,29 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
     }
 
     // -- AMS ----------------------------------------------------------------
+    // Simulated "AMS busy" window so the Load/Unload/Sync-disabling UI can
+    // be exercised without real hardware -- real backend derives this from
+    // tray_tar != tray_now instead (see PrinterTelemetry.isAmsBusy).
+    private var amsBusy = false
+
     override suspend fun loadFilament(slot: Int) {
+        amsBusy = true
+        tick()
+        delay(AMS_BUSY_MS)
         for (i in amsTrays.indices) {
             amsTrays[i] = amsTrays[i].copy(isActive = amsTrays[i].slotIndex == slot)
         }
+        amsBusy = false
         tick()
     }
 
     override suspend fun unloadFilament(slot: Int) {
+        amsBusy = true
+        tick()
+        delay(AMS_BUSY_MS)
         val idx = amsTrays.indexOfFirst { it.slotIndex == slot }
         if (idx >= 0) amsTrays[idx] = amsTrays[idx].copy(isActive = false)
+        amsBusy = false
         tick()
     }
 
@@ -261,6 +274,7 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
                 speedLevel = speedLevel,
                 fanSpeeds = fanSpeeds.toMap(),
                 amsTrays = amsTrays.toList(),
+                amsBusy = amsBusy,
                 hmsErrors = emptyList(),
                 gcodeState = gcodeState,
                 printPercent = printPercent,
@@ -296,5 +310,6 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
             PrintFile(name = "bracket_v3.gcode.3mf", path = "cache/bracket_v3.gcode.3mf", sizeBytes = 980_000),
         )
         private val MOCK_AMS_COLORS = listOf("#1E88E5", "#43A047", "#FDD835", "#E53935")
+        private const val AMS_BUSY_MS = 3000L
     }
 }
