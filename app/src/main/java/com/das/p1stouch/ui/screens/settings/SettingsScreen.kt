@@ -51,6 +51,7 @@ fun SettingsScreen(onSetup: () -> Unit) {
 
     var codeRevealed by remember { mutableStateOf(false) }
     var showSetupWarning by remember { mutableStateOf(false) }
+    var showCalibrationConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -148,6 +149,38 @@ fun SettingsScreen(onSetup: () -> Unit) {
 
         Text("App version: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)
         Text("Backend: ${config.backend}", style = MaterialTheme.typography.bodyLarge)
+
+        // Full auto-calibration (bed leveling + vibration compensation +
+        // motor noise cancellation) -- a real, multi-minute operation that
+        // physically moves the extruder and print bed, so it needs the
+        // same confirm-before-acting treatment as Stop Print, not a bare
+        // button.
+        OutlinedButton(onClick = { showCalibrationConfirm = true }) {
+            Text("Run Calibration")
+        }
+
+        if (showCalibrationConfirm) {
+            AlertDialog(
+                onDismissRequest = { showCalibrationConfirm = false },
+                title = { Text("Run Calibration") },
+                text = {
+                    Text(
+                        "Run full calibration (bed leveling, vibration compensation, motor " +
+                            "noise cancellation)? This takes several minutes and moves the " +
+                            "extruder and print bed -- make sure the bed is clear.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showCalibrationConfirm = false }) { Text("Cancel") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showCalibrationConfirm = false
+                        scope.launch { backend.runCalibration() }
+                    }) { Text("Run") }
+                },
+            )
+        }
 
         Button(onClick = { activity?.finishAffinity() }) {
             Text("Exit App")
