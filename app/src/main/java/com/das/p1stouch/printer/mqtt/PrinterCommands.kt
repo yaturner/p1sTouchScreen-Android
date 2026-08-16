@@ -108,6 +108,32 @@ object PrinterCommands {
         }
     }
 
+    // ams_filament_setting: writes a slot's stored filament type + color.
+    // Confirmed against bambulabs_api's set_printer_filament() -- amsId=0
+    // (this printer's single AMS unit) + trayId=<slot 0-3> targets a real
+    // AMS slot, not that method's own default ams_id=255/tray_id=254
+    // (the external-spool sentinel). trayColor needs the trailing alpha
+    // byte to match the FF the printer's own telemetry always reports.
+    fun amsFilamentSetting(
+        slot: Int,
+        trayInfoIdx: String,
+        colorHex: String,
+        nozzleTempMin: Int,
+        nozzleTempMax: Int,
+        trayType: String,
+    ): JsonObject = buildJsonObject {
+        putJsonObject("print") {
+            put("command", "ams_filament_setting")
+            put("ams_id", 0)
+            put("tray_id", slot)
+            put("tray_info_idx", trayInfoIdx)
+            put("tray_color", "${colorHex.removePrefix("#").uppercase()}FF")
+            put("nozzle_temp_min", nozzleTempMin)
+            put("nozzle_temp_max", nozzleTempMax)
+            put("tray_type", trayType)
+        }
+    }
+
     // real_backend.py's start_print()/_start_print_attempt(): "project_file"
     // command. The critical, live-tested detail is the url scheme --
     // bambulabs_api's own default ("ftp:///{filename}") reliably fails to

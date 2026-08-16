@@ -66,6 +66,11 @@ interface PrinterBackend {
     // knows, e.g. right after physically swapping a spool.
     suspend fun syncAms()
 
+    // Writes a slot's stored filament type + color -- ams_filament_setting,
+    // confirmed against bambulabs_api's set_printer_filament(). filamentKey
+    // is one of FilamentPresets.BY_KEY's keys.
+    suspend fun setFilamentSettings(slot: Int, filamentKey: String, colorHex: String)
+
     // -- files ---------------------------------------------------------------
     suspend fun requestFileList()
 }

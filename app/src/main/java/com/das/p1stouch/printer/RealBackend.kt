@@ -336,6 +336,18 @@ class RealBackend(
         }
     }
 
+    override suspend fun setFilamentSettings(slot: Int, filamentKey: String, colorHex: String) {
+        val preset = FilamentPresets.BY_KEY[filamentKey] ?: run {
+            Log.w(TAG, "unknown filament preset $filamentKey")
+            return
+        }
+        publishSafely(
+            PrinterCommands.amsFilamentSetting(
+                slot, preset.trayInfoIdx, colorHex, preset.nozzleTempMin, preset.nozzleTempMax, preset.trayType,
+            ),
+        )
+    }
+
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
         val files = try {

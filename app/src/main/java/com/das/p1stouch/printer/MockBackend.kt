@@ -208,6 +208,15 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
         _errors.emit("AMS synced")
     }
 
+    override suspend fun setFilamentSettings(slot: Int, filamentKey: String, colorHex: String) {
+        val preset = FilamentPresets.BY_KEY[filamentKey] ?: return
+        val idx = amsTrays.indexOfFirst { it.slotIndex == slot }
+        if (idx >= 0) {
+            amsTrays[idx] = amsTrays[idx].copy(filamentType = preset.trayType, colorHex = colorHex, isEmpty = false)
+        }
+        tick()
+    }
+
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
         _fileList.value = MOCK_FILES

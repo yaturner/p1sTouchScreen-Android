@@ -17,4 +17,6 @@ class FilamentAmsViewModel(private val backend: PrinterBackend) : ViewModel() {
     fun load(slotIndex: Int) = viewModelScope.launch { backend.loadFilament(slotIndex) }
     fun unload(slotIndex: Int) = viewModelScope.launch { backend.unloadFilament(slotIndex) }
     fun sync() = viewModelScope.launch { backend.syncAms() }
+    fun setFilamentSettings(slotIndex: Int, filamentKey: String, colorHex: String) =
+        viewModelScope.launch { backend.setFilamentSettings(slotIndex, filamentKey, colorHex) }
 }

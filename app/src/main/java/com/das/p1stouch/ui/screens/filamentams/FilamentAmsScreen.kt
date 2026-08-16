@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +48,7 @@ fun FilamentAmsScreen() {
     val byIndex = state.amsTrays.associateBy { it.slotIndex }
     val isPortrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     val columns = if (isPortrait) 1 else 2
+    var editingSlot by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -73,11 +77,24 @@ fun FilamentAmsScreen() {
                         busy = state.amsBusy,
                         onLoad = { vm.load(i) },
                         onUnload = { vm.unload(i) },
+                        onEdit = { editingSlot = i },
                         modifier = Modifier.weight(1f),
                     )
                 }
             }
         }
+    }
+
+    editingSlot?.let { slot ->
+        AmsEditDialog(
+            slotIndex = slot,
+            tray = byIndex[slot] ?: AMSTray(slotIndex = slot),
+            onDismiss = { editingSlot = null },
+            onConfirm = { filamentKey, colorHex ->
+                vm.setFilamentSettings(slot, filamentKey, colorHex)
+                editingSlot = null
+            },
+        )
     }
 }
 
@@ -87,6 +104,7 @@ private fun AmsSlotCard(
     busy: Boolean,
     onLoad: () -> Unit,
     onUnload: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -130,6 +148,12 @@ private fun AmsSlotCard(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                 ) { Text("Unload", style = MaterialTheme.typography.labelMedium, maxLines = 1) }
+                OutlinedButton(
+                    onClick = onEdit,
+                    enabled = !busy && !tray.isEmpty,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                ) { Text("Edit", style = MaterialTheme.typography.labelMedium, maxLines = 1) }
             }
         }
     }
