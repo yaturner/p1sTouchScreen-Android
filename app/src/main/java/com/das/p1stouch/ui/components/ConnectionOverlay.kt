@@ -2,6 +2,7 @@ package com.das.p1stouch.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -10,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import com.das.p1stouch.state.ConnectionState
 
 private val MESSAGES = mapOf(
@@ -27,7 +29,14 @@ fun ConnectionOverlay(connection: ConnectionState, modifier: Modifier = Modifier
     val message = MESSAGES[connection]
     AnimatedVisibility(visible = message != null) {
         Box(
-            modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.78f)),
+            // A plain Box has no gesture handler by default, so touches
+            // fall through to whatever's underneath in z-order despite
+            // this being visually on top -- detectTapGestures with no-op
+            // callbacks consumes every tap here instead, actually blocking
+            // interaction with the screen behind the scrim.
+            modifier = modifier.fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.78f))
+                .pointerInput(Unit) { detectTapGestures { } },
             contentAlignment = Alignment.Center,
         ) {
             Text(message ?: "", color = Color.White, style = MaterialTheme.typography.titleLarge)
