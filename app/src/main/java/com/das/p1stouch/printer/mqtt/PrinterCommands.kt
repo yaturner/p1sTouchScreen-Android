@@ -134,6 +134,19 @@ object PrinterCommands {
         }
     }
 
+    // Full auto-calibration (bed leveling + vibration compensation + motor
+    // noise cancellation). Bitmask confirmed against bambulabs_api's
+    // calibration(): bit 1 = bed leveling, bit 2 = vibration compensation,
+    // bit 3 = motor noise cancellation -- matches that method's own
+    // defaults (all three on). A real, multi-minute operation that
+    // physically moves the extruder and print bed.
+    fun calibration(): JsonObject = buildJsonObject {
+        putJsonObject("print") {
+            put("command", "calibration")
+            put("option", (1 shl 1) or (1 shl 2) or (1 shl 3))
+        }
+    }
+
     // real_backend.py's start_print()/_start_print_attempt(): "project_file"
     // command. The critical, live-tested detail is the url scheme --
     // bambulabs_api's own default ("ftp:///{filename}") reliably fails to

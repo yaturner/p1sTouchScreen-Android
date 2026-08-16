@@ -73,4 +73,11 @@ interface PrinterBackend {
 
     // -- files ---------------------------------------------------------------
     suspend fun requestFileList()
+
+    // Runs the printer's own full auto-calibration sequence (bed leveling +
+    // vibration compensation + motor noise cancellation) -- confirmed
+    // against bambulabs_api's calibration(). A real, multi-minute operation
+    // that physically moves the extruder and print bed, so the UI must confirm before
+    // calling this, same as Stop Print.
+    suspend fun runCalibration()
 }

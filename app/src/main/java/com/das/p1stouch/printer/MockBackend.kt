@@ -217,6 +217,10 @@ class MockBackend(private val scope: CoroutineScope) : PrinterBackend {
         tick()
     }
 
+    override suspend fun runCalibration() {
+        // no-op in mock; real backend publishes the calibration command
+    }
+
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
         _fileList.value = MOCK_FILES

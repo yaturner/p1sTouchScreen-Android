@@ -7,9 +7,12 @@ import com.das.p1stouch.state.PrinterState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-class AssistantViewModel(backend: PrinterBackend) : ViewModel() {
+class AssistantViewModel(private val backend: PrinterBackend) : ViewModel() {
     val state: StateFlow<PrinterState> = backend.state.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), PrinterState(),
     )
+
+    fun runCalibration() = viewModelScope.launch { backend.runCalibration() }
 }

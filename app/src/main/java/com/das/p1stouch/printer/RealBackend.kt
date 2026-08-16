@@ -348,6 +348,8 @@ class RealBackend(
         )
     }
 
+    override suspend fun runCalibration() = publishSafely(PrinterCommands.calibration())
+
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
         val files = try {
