@@ -38,6 +38,10 @@ class MqttPrinterClient(
     val requestTopic: String get() = "device/$serial/request"
 
     suspend fun connect(): Boolean {
+        // A stale client from a previous connect attempt (e.g. overlapping
+        // reconnects) must be torn down first, or its socket leaks silently
+        // once the field below gets overwritten with the new one.
+        client?.disconnect()
         val mqtt3Client = Mqtt3Client.builder()
             .identifier("p1stouch-android-${System.currentTimeMillis()}")
             .serverHost(ip)

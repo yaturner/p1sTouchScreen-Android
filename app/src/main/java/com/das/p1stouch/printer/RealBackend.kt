@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
@@ -91,6 +93,11 @@ class RealBackend(
     private var pushAllRefreshJob: Job? = null
     private var cameraJob: Job? = null
     private var wantsConnection = false
+    // Serializes every mqttClient.connect()/disconnect() call -- a
+    // watchdog-triggered reconnect and a user tap on Settings' Reconnect
+    // button can otherwise race, each building/tearing-down the client
+    // field concurrently and leaking or double-driving a connection.
+    private val connectionMutex = Mutex()
 
     // -- lifecycle -----------------------------------------------------
     override suspend fun connect() {
@@ -111,7 +118,7 @@ class RealBackend(
         cameraJob?.cancel(); cameraJob = null
         reportJob?.cancel(); reportJob = null
         reconnectJob?.cancel(); reconnectJob = null
-        mqttClient.disconnect()
+        connectionMutex.withLock { mqttClient.disconnect() }
         ftpClient.disconnect()
         _state.update { it.copy(connection = ConnectionState.DISCONNECTED) }
     }
@@ -155,9 +162,20 @@ class RealBackend(
         }
     }
 
-    private suspend fun attemptConnect() {
+    private suspend fun attemptConnect() = connectionMutex.withLock {
+        // A disconnect() may have run (and flipped this false) while this
+        // attempt was queued behind the lock -- don't resurrect a
+        // connection the user explicitly tore down.
+        if (!wantsConnection) return@withLock
         try {
             mqttClient.connect()
+            if (!wantsConnection) {
+                // disconnect() ran during the connect handshake itself --
+                // undo it immediately rather than committing CONNECTED
+                // state for a connection nobody wants anymore.
+                mqttClient.disconnect()
+                return@withLock
+            }
             _state.update { it.copy(connection = ConnectionState.CONNECTED) }
             reportJob?.cancel()
             reportJob = scope.launch {
@@ -180,8 +198,10 @@ class RealBackend(
         } catch (e: Exception) {
             Log.w(TAG, "connect failed", e)
             _errors.emit("Connection failed: ${e.message}")
-            _state.update { it.copy(connection = ConnectionState.RECONNECTING) }
-            scheduleReconnect()
+            if (wantsConnection) {
+                _state.update { it.copy(connection = ConnectionState.RECONNECTING) }
+                scheduleReconnect()
+            }
         }
     }
 

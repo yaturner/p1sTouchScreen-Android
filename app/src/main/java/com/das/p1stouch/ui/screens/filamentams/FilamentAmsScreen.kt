@@ -154,7 +154,11 @@ private fun AmsSlotCard(
                 ) { Text("Unload", style = MaterialTheme.typography.labelMedium, maxLines = 1) }
                 OutlinedButton(
                     onClick = onEdit,
-                    enabled = !busy && !tray.isEmpty,
+                    // Unlike Load/Unload, Edit is meaningful on an empty
+                    // slot too -- it pre-labels a slot's filament type/color
+                    // before a spool is physically inserted, same as the
+                    // printer's own Edit-slot screen allows.
+                    enabled = !busy,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                 ) { Text("Edit", style = MaterialTheme.typography.labelMedium, maxLines = 1) }

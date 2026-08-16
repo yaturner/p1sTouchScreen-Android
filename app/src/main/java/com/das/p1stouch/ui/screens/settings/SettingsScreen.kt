@@ -52,6 +52,11 @@ fun SettingsScreen(onSetup: () -> Unit) {
     var codeRevealed by remember { mutableStateOf(false) }
     var showSetupWarning by remember { mutableStateOf(false) }
     var showCalibrationConfirm by remember { mutableStateOf(false) }
+    // Guards against a fast double-tap firing two concurrent connect()/
+    // disconnect() calls -- RealBackend now serializes them internally too,
+    // but disabling the button while one is in flight avoids the wasted
+    // second call (and the brief lock-wait it'd otherwise cause) entirely.
+    var connectionActionInFlight by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -72,15 +77,24 @@ fun SettingsScreen(onSetup: () -> Unit) {
 
         val isConnected = backendState.connection == ConnectionState.CONNECTED
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = {
-                scope.launch {
-                    backend.disconnect()
-                    // Only immediately reconnect if that's what was asked for
-                    // -- Disconnect should actually disconnect and stay that
-                    // way, not bounce right back.
-                    if (!isConnected) backend.connect()
-                }
-            }) {
+            OutlinedButton(
+                enabled = !connectionActionInFlight,
+                onClick = {
+                    connectionActionInFlight = true
+                    scope.launch {
+                        try {
+                            backend.disconnect()
+                            // Only immediately reconnect if that's what was
+                            // asked for -- Disconnect should actually
+                            // disconnect and stay that way, not bounce right
+                            // back.
+                            if (!isConnected) backend.connect()
+                        } finally {
+                            connectionActionInFlight = false
+                        }
+                    }
+                },
+            ) {
                 Text(if (isConnected) "Disconnect" else "Reconnect")
             }
             OutlinedButton(onClick = {
