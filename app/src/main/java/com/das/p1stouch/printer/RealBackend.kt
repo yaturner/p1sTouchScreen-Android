@@ -321,7 +321,20 @@ class RealBackend(
     // (see startPushAllRefresh) -- no local command forces the AMS to
     // re-scan RFID, this just re-requests full state immediately instead
     // of waiting for the next periodic refresh.
-    override suspend fun syncAms() = publishSafely(PrinterCommands.pushAll())
+    // Publishes directly (not via publishSafely) so a confirmation can be
+    // shown on success too -- confirmed live that a silent syncAms() felt
+    // broken even though it was actually publishing every tap (AMS data
+    // is usually already fresh from the periodic refresh, so there's
+    // rarely any visible change to prove it worked).
+    override suspend fun syncAms() {
+        try {
+            mqttClient.publish(PrinterCommands.pushAll().toString())
+            _errors.emit("AMS synced")
+        } catch (e: Exception) {
+            Log.w(TAG, "sync AMS failed", e)
+            _errors.emit("Command failed: ${e.message}")
+        }
+    }
 
     // -- files ----------------------------------------------------------------
     override suspend fun requestFileList() {
