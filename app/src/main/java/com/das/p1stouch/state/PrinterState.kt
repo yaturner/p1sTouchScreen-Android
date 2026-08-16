@@ -15,6 +15,11 @@ enum class GcodeState {
 data class AMSTray(
     val slotIndex: Int,
     val filamentType: String? = null,
+    // The RFID's specific product name (e.g. "PLA Translucent"), distinct
+    // from filamentType's generic material category (e.g. "PLA") -- from
+    // raw tray_sub_brands. Null/blank for a manually-Edited slot, since
+    // ams_filament_setting doesn't set this field.
+    val subBrand: String? = null,
     val colorHex: String? = null,
     val isActive: Boolean = false,
     val isEmpty: Boolean = true,

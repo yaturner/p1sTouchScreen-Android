@@ -123,6 +123,7 @@ object PrinterTelemetry {
                 AMSTray(
                     slotIndex = i,
                     filamentType = tray.stringField("tray_type"),
+                    subBrand = tray.stringField("tray_sub_brands")?.ifBlank { null },
                     colorHex = normalizeColor(tray.stringField("tray_color")),
                     isActive = i == activeIndex,
                     isEmpty = false,

@@ -129,7 +129,11 @@ private fun AmsSlotCard(
             val label = if (tray.isEmpty) {
                 "Slot ${tray.slotIndex + 1}: Empty"
             } else {
-                "Slot ${tray.slotIndex + 1}: ${tray.filamentType ?: "?"}${if (tray.isActive) " • active" else ""}"
+                // Prefer the RFID's specific product name (e.g. "PLA
+                // Translucent") over the generic material category ("PLA")
+                // when the printer reports one.
+                val name = tray.subBrand ?: tray.filamentType ?: "?"
+                "Slot ${tray.slotIndex + 1}: $name${if (tray.isActive) " • active" else ""}"
             }
             Text(label, style = MaterialTheme.typography.bodyMedium)
 
